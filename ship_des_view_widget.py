@@ -138,6 +138,44 @@ class ShipDesViewWidget(QWidget):
         # --- NEW: Storage for plot window ---
         self.graph_window = None # Holds reference to graph window
 
+        # --- NEW: Voyage configuration variables ---
+        self.m_VoyageMode = 0  # 0=Annual Voyages, 1=Port to Port
+        self.m_SelectedRoute = "Southampton → Singapore (Suez)"
+        self.m_SpeedProfile_Ocean = 100.0  # % of cruise speed
+        self.m_SpeedProfile_Canal = 20.0   # % of cruise speed
+        self.m_SpeedProfile_Port = 10.0    # % of cruise speed
+        self.m_PortDays_Origin = 2.0
+        self.m_PortDays_Dest = 2.0
+        self.m_CustomRoute_PortApproach = 100.0  # nm
+        self.m_CustomRoute_Canal = 0.0  # nm
+        self.m_CustomRoute_Ocean = 8000.0  # nm
+
+        # Internal calculation variables
+        self.Kcases = 0 #
+        self.Ketype = 1 #
+        self.Kstype = 1 #
+        self.m_Core_Life = 20.0             # (Years)
+        self.m_Decom_Cost = 200.0           # (M$)
+        
+        # --- NEW: Storage for conventional range ---
+        self.m_conventional_Range = self.m_Range # Store the default
+        
+        # --- NEW: Storage for plot window ---
+        self.graph_window = None # Holds reference to graph window
+
+        # Internal calculation variables
+        self.Kcases = 0 #
+        self.Ketype = 1 #
+        self.Kstype = 1 #
+        self.m_Core_Life = 20.0             # (Years)
+        self.m_Decom_Cost = 200.0           # (M$)
+        
+        # --- NEW: Storage for conventional range ---
+        self.m_conventional_Range = self.m_Range # Store the default
+        
+        # --- NEW: Storage for plot window ---
+        self.graph_window = None # Holds reference to graph window
+
         # Internal calculation variables
         self.Kcases = 0 #
         self.Ketype = 1 #
@@ -244,6 +282,10 @@ class ShipDesViewWidget(QWidget):
         self.dlg_outopt = OutoptDialog(self)
         self.dlg_readme = ReadmeDialog(self)
 
+        # --- NEW: Voyage Dialog ---
+        from dialog_voyage import VoyageDialog
+        self.dlg_voyage = VoyageDialog(self)
+
         # --- Create UI Controls (from ShipDes.rc) ---
         #
         self.combo_ship = QComboBox()
@@ -325,6 +367,7 @@ class ShipDesViewWidget(QWidget):
         # Buttons to open dialogs
         self.btn_modify = QPushButton("&Modify parameters") #
         self.btn_outopt = QPushButton("&Output options") #
+        self.btn_voyage = QPushButton("&Voyage Config...")
 
         # --- Lay out the form ---
         main_layout = QHBoxLayout()
@@ -517,6 +560,7 @@ class ShipDesViewWidget(QWidget):
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.btn_modify)
         button_layout.addWidget(self.btn_outopt)
+        button_layout.addWidget(self.btn_voyage)
         button_layout.addWidget(self.btn_save)
         left_col.addLayout(button_layout)
         
@@ -533,6 +577,8 @@ class ShipDesViewWidget(QWidget):
         self.btn_save.clicked.connect(self.on_button_save)
         self.btn_modify.clicked.connect(self.on_dialog_modify)
         self.btn_outopt.clicked.connect(self.on_dialog_outopt)
+        self.btn_voyage.clicked.connect(self.on_dialog_voyage)
+
         
         #
         self.radio_cargo.toggled.connect(self._reset_dlg)
@@ -1882,6 +1928,115 @@ class ShipDesViewWidget(QWidget):
         """Called from main window menu"""
         self.dlg_readme.exec()
 
+    def on_dialog_voyage(self):
+        """Handle voyage configuration dialog"""
+        # Prepare data for dialog
+        voyage_data = {
+            'voyage_mode': self.m_VoyageMode,
+            'selected_route': self.m_SelectedRoute,
+            'speed_profile_ocean': self.m_SpeedProfile_Ocean,
+            'speed_profile_canal': self.m_SpeedProfile_Canal,
+            'speed_profile_port': self.m_SpeedProfile_Port,
+            'port_days_origin': self.m_PortDays_Origin,
+            'port_days_dest': self.m_PortDays_Dest,
+            'custom_port_approach': self.m_CustomRoute_PortApproach,
+            'custom_canal': self.m_CustomRoute_Canal,
+            'custom_ocean': self.m_CustomRoute_Ocean,
+        }
+        
+        self.dlg_voyage.set_data(voyage_data)
+        
+        if self.dlg_voyage.exec():  # User clicked OK
+            # Get updated data
+            voyage_data = self.dlg_voyage.get_data()
+            
+            self.m_VoyageMode = voyage_data['voyage_mode']
+            self.m_SelectedRoute = voyage_data['selected_route']
+            self.m_SpeedProfile_Ocean = voyage_data['speed_profile_ocean']
+            self.m_SpeedProfile_Canal = voyage_data['speed_profile_canal']
+            self.m_SpeedProfile_Port = voyage_data['speed_profile_port']
+            self.m_PortDays_Origin = voyage_data['port_days_origin']
+            self.m_PortDays_Dest = voyage_data['port_days_dest']
+            self.m_CustomRoute_PortApproach = voyage_data['custom_port_approach']
+            self.m_CustomRoute_Canal = voyage_data['custom_canal']
+            self.m_CustomRoute_Ocean = voyage_data['custom_ocean']
+            
+            # Update voyage display
+            self._update_voyage_display()
+    
+    def _update_voyage_display(self):
+        """Update the voyages display based on current mode"""
+        if self.m_VoyageMode == 1:  # Port to Port mode
+            # Calculate and display voyages
+            calculated_voyages = self._calculate_annual_voyages()
+            if calculated_voyages is not None:
+                self.m_Voyages = calculated_voyages
+                self.edit_voyages.setText(f"{self.m_Voyages:.6g}")
+                self.edit_voyages.setReadOnly(True)
+                self.edit_voyages.setStyleSheet("background-color: #f0f0f0;")
+        else:  # Annual Voyages mode
+            self.edit_voyages.setReadOnly(False)
+            self.edit_voyages.setStyleSheet("")
+    
+    def _calculate_annual_voyages(self):
+        """Calculate annual voyages based on route and speed profile"""
+        try:
+            from dialog_voyage import ROUTE_DATABASE
+            
+            # Get cruise speed
+            cruise_speed = self.m_Speed
+            
+            # Get route distances
+            if self.m_SelectedRoute == "Custom":
+                dist_port = self.m_CustomRoute_PortApproach
+                dist_canal = self.m_CustomRoute_Canal
+                dist_ocean = self.m_CustomRoute_Ocean
+            else:
+                if self.m_SelectedRoute in ROUTE_DATABASE:
+                    route = ROUTE_DATABASE[self.m_SelectedRoute]
+                    dist_port = route['port_approach']
+                    dist_canal = route['canal']
+                    dist_ocean = route['open_ocean']
+                else:
+                    return None
+            
+            # Get speed profiles (as fractions)
+            speed_ocean_pct = self.m_SpeedProfile_Ocean / 100.0
+            speed_canal_pct = self.m_SpeedProfile_Canal / 100.0
+            speed_port_pct = self.m_SpeedProfile_Port / 100.0
+            
+            # Calculate time for each segment (hours)
+            time_port_hours = dist_port / (cruise_speed * speed_port_pct) if speed_port_pct > 0 else 0
+            time_canal_hours = dist_canal / (cruise_speed * speed_canal_pct) if speed_canal_pct > 0 else 0
+            time_ocean_hours = dist_ocean / (cruise_speed * speed_ocean_pct) if speed_ocean_pct > 0 else 0
+            
+            # Convert to days
+            time_port_days = time_port_hours / 24.0
+            time_canal_days = time_canal_hours / 24.0
+            time_ocean_days = time_ocean_hours / 24.0
+            
+            # One-way transit time
+            one_way_time = time_port_days + time_canal_days + time_ocean_days
+            
+            # Round trip time
+            round_trip_time = 2 * one_way_time
+            
+            # Add port operation time
+            total_port_days = self.m_PortDays_Origin + self.m_PortDays_Dest
+            
+            # Total voyage time
+            total_voyage_time = round_trip_time + total_port_days
+            
+            # Calculate annual voyages
+            if total_voyage_time > 0:
+                annual_voyages = self.m_Seadays / total_voyage_time
+                return annual_voyages
+            else:
+                return None
+                
+        except (ValueError, ZeroDivisionError, KeyError):
+            return None
+
     def _reset_dlg(self, checked=None):
         """Port of reset_dlg - NOW THE MAIN UI CONTROLLER"""
         
@@ -1973,7 +2128,10 @@ class ShipDesViewWidget(QWidget):
                 # This could happen if started in nuclear mode, just use default
                 self.m_conventional_Range = 12000.0 
             self.edit_range.setText(f"{self.m_conventional_Range:.6g}")
-        
+            
+        # --- NEW: Update voyage display based on mode ---
+        self._update_voyage_display()
+
         # Save button
         self.btn_save.setEnabled(self.CalculatedOk and not self.Ksaved)
 
