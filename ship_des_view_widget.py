@@ -159,63 +159,76 @@ class FuelConfig:
     def get(name):
         return FuelConfig.DATA.get(name, FuelConfig.DATA["Direct diesel"])
 
-# --- UPDATED: Ship Type & Hull Constants (With Volume Factors) ---
+# --- UPDATED: Ship Type & Hull Constants (With EEDI Data) ---
 class ShipConfig:
     DATA = {
-        # --- EXISTING TYPES ---
         "Tanker": {
             "ID": 1,
             "Steel_K1": 0.032,
             "Outfit_Intercept": 0.37, "Outfit_Slope": 1765.0,
             "Stability_Factor": 0.63,
-            "Freeboard_Type": "Tanker",
             "Design_Type": "Deadweight",
-            # NEW: Volume factors
-            "Profile_Factor": 1.10,    # Flat deck, small superstructure
-            "Cargo_Density": 0.85      # Oil (t/m3)
+            "Profile_Factor": 1.10,
+            "Cargo_Density": 0.85,
+            "EEDI_a": 1218.80, "EEDI_c": 0.488,
+            "EEDI_Enabled": True, "EEDI_Type": "DWT" # Standard
         },
         "Bulk carrier": {
             "ID": 2,
             "Steel_K1": 0.032,
             "Outfit_Intercept": 0.32, "Outfit_Slope": 1765.0,
             "Stability_Factor": 0.57,
-            "Freeboard_Type": "Standard",
             "Design_Type": "Deadweight",
-            "Profile_Factor": 1.15,    # Hatches add slight volume
-            "Cargo_Density": 1.50      # Ore/Grain (Avg)
+            "Profile_Factor": 1.15,
+            "Cargo_Density": 1.50,
+            "EEDI_a": 961.79, "EEDI_c": 0.477,
+            "EEDI_Enabled": True, "EEDI_Type": "DWT"
         },
         "Cargo vessel": {
             "ID": 3,
             "Steel_K1": 0.034,
             "Outfit_Intercept": 0.41, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.62,
-            "Freeboard_Type": "Standard",
             "Design_Type": "Deadweight",
-            "Profile_Factor": 1.30,    # Cranes/Superstructure
-            "Cargo_Density": 0.60      # General Cargo
+            "Profile_Factor": 1.30,
+            "Cargo_Density": 0.60,
+            "EEDI_a": 107.48, "EEDI_c": 0.216,
+            "EEDI_Enabled": True, "EEDI_Type": "DWT"
         },
-        
-        # --- NEW TYPES ---
         "Container Ship": {
             "ID": 4,
             "Steel_K1": 0.036,
             "Outfit_Intercept": 0.45, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.60,
-            "Freeboard_Type": "Standard",
-            "Design_Type": "Volume",   # Containers take space!
-            "Profile_Factor": 1.60,    # Containers stack high above deck
-            "Cargo_Density": 0.0       # (Calculated via TEU)
+            "Design_Type": "Volume",
+            "Profile_Factor": 1.60,
+            "Cargo_Density": 0.0,
+            "EEDI_a": 174.22, "EEDI_c": 0.201,
+            "EEDI_Enabled": True, "EEDI_Type": "DWT" # Containers use DWT for simplified EEDI
         },
         "Cruise Ship": {
             "ID": 5,
             "Steel_K1": 0.045,
-            "Outfit_Intercept": 0.80,
-            "Outfit_Slope": 0.0,
+            "Outfit_Intercept": 0.80, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.70,
-            "Freeboard_Type": "Passenger",
-            "Design_Type": "Volume",   # Pure volume
-            "Profile_Factor": 2.40,    # Massive superstructure (Hotel)
-            "Cargo_Density": 0.0       # (Calculated via Pax)
+            "Design_Type": "Volume",
+            "Profile_Factor": 2.40,
+            "Cargo_Density": 0.0,
+            # Pass. Ship Reference Line: 170.84 * GT^-0.214
+            "EEDI_a": 170.84, "EEDI_c": 0.214,
+            "EEDI_Enabled": True, "EEDI_Type": "GT" # Uses Gross Tonnage
+        },
+        "Superyacht": {
+            "ID": 6,
+            "Steel_K1": 0.042,
+            "Outfit_Intercept": 0.90, "Outfit_Slope": 0.0,
+            "Stability_Factor": 0.68,
+            "Design_Type": "Volume",
+            "Profile_Factor": 2.20,
+            "Cargo_Density": 0.0,
+            # Uses same curve as Cruise Ships for this estimation
+            "EEDI_a": 170.84, "EEDI_c": 0.214,
+            "EEDI_Enabled": True, "EEDI_Type": "GT" # Uses Gross Tonnage
         }
     }
 
@@ -896,6 +909,15 @@ class ShipDesViewWidget(QWidget):
         # Row 5: Decommissioning Cost
         eco_grid.addWidget(self.label_decom_cost, 5, 0)
         eco_grid.addWidget(self.edit_decom_cost, 5, 1)
+
+        # --- NEW: EEDI Checkbox ---
+        self.check_eedi = QCheckBox("Calculate EEDI (Phase 3)")
+        self.check_eedi.setToolTip("Calculates Energy Efficiency Design Index against IMO Reference Lines")
+        self.check_eedi.toggled.connect(self._reset_dlg) # Connect to reset logic
+        
+        # Add to the Tax Layout (Row 2 of eco_grid) or a new row
+        # Let's add it to the existing tax_layout for tidiness:
+        tax_layout.addWidget(self.check_eedi)
 
         # Finalize Layout
         eco_layout.addRow(eco_grid)
@@ -2914,6 +2936,16 @@ class ShipDesViewWidget(QWidget):
         if show_density and (not self.edit_density.text() or self.edit_density.text() == "0.0"):
              self.edit_density.setText(str(ship_data.get("Cargo_Density", 0.0)))
 
+        is_econom_on = self.check_econom.isChecked()
+        eedi_allowed = ship_data.get("EEDI_Enabled", False)
+        
+        if is_econom_on and eedi_allowed:
+            self.check_eedi.setVisible(True)
+            self.check_eedi.setEnabled(True)
+        else:
+            self.check_eedi.setVisible(False)
+            self.check_eedi.setChecked(False) # Force uncheck if hidden
+
         # 5. Standard Field Enabling
         self.edit_length.setEnabled(is_ship_mode)
         self.edit_breadth.setEnabled(is_ship_mode)
@@ -3104,20 +3136,37 @@ class ShipDesViewWidget(QWidget):
             self.m_CbvalueV=1.0e-6*int(1.0e6*self.C+0.5)
 
     def _outvdu(self):
-        """Port of Sub_outvdu"""
-        #
+        """Port of Sub_outvdu - UPDATED for GT and EEDI"""
         output_lines = []
         
-        Stype = self.combo_ship.currentText() #
-        Etype = self.combo_engine.currentText() #
+        Stype = self.combo_ship.currentText()
+        Etype = self.combo_engine.currentText()
         
-        if self.m_Append and self.Kcases > 0: #
+        # Load Config Data
+        ship_data = ShipConfig.get(Stype)
+        
+        # --- NEW: Calculate Gross Tonnage (GT) ---
+        # Formula: GT = V * (0.2 + 0.02 * log10(V))
+        # V = Enclosed Volume = L * B * D * Profile_Factor
+        # (Profile factor accounts for superstructure volume above main deck)
+        pf = ship_data.get("Profile_Factor", 1.0)
+        vol_enclosed = self.L1 * self.B * self.D * pf
+        
+        if vol_enclosed > 0:
+            import math
+            gt_factor = 0.2 + 0.02 * math.log10(vol_enclosed)
+            gross_tonnage = vol_enclosed * gt_factor
+        else:
+            gross_tonnage = 0.0
+        # -----------------------------------------
+        
+        if self.m_Append and self.Kcases > 0:
             self.Kcases += 1
             output_lines.append("\r\n" + "="*40 + "\r\n")
         else:
-            self.Kcases = 1 #
+            self.Kcases = 1
             
-        output_lines.append(f"Case {self.Kcases:3d}: {Stype} with {Etype} engine") #
+        output_lines.append(f"Case {self.Kcases:3d}: {Stype} with {Etype} engine")
         
         opt = self.outopt_data
         ob1 = (opt['ol'] or opt['ob'] or opt['olb'] or opt['od'] or opt['ot'] or opt['obt'] or opt['ocb'] or
@@ -3134,7 +3183,7 @@ class ShipDesViewWidget(QWidget):
 
         if ob1 or (ob2 and self.m_Econom):
             if ob1:
-                output_lines.append("  ------- Dimensions:") #
+                output_lines.append("  ------- Dimensions:")
             
             dim_parts1 = []
             if opt['ol']: dim_parts1.append(f"Lbp(m) = {self.L1:8.2f}")
@@ -3148,35 +3197,38 @@ class ShipDesViewWidget(QWidget):
             if opt['obt']: dim_parts2.append(f"B/T = {B_safe/T_safe:7.2f}")
             if dim_parts2: output_lines.append("   " + ", ".join(dim_parts2))
             
-            if opt['ocb']: output_lines.append(f"   CB = {self.C:5.3f}") #
-            if opt['odisp']: output_lines.append(f"   Disp. (tonnes) = {int(self.M + 0.5):7d}") #
+            if opt['ocb']: output_lines.append(f"   CB = {self.C:5.3f}")
+            if opt['odisp']: output_lines.append(f"   Disp. (tonnes) = {int(self.M + 0.5):7d}")
             
-            # --- MODIFIED: TEU Output ---
-            if self.design_mode == 2: # If we were in TEU mode
+            # --- TEU Output ---
+            if self.design_mode == 2:
                 est_teu = self._estimate_teu_capacity(self.L1, self.B, self.D)
                 output_lines.append(f"   Target TEU = {int(self.target_teu)}")
                 output_lines.append(f"   Est. Capacity = {int(est_teu)} TEU")
                 output_lines.append(f"   Avg. Weight = {self.m_TEU_Avg_Weight:5.2f} t/TEU")
                 output_lines.append(f"   -> Target Cargo DW = {self.W:7.0f} tonnes")
-            elif self.Kstype == 3 and (opt['ocdw'] or opt['otdw']): # Cargo ship
-                est_teu = self._estimate_teu_capacity(self.L1, self.B, self.D)
-                output_lines.append(f"   (Est. TEU Capacity = ~{int(est_teu)})")
-                
-            if opt['ocdw']: output_lines.append(f"   Cargo DW(tonnes) = {self.W1:7.0f}") #
-            if opt['otdw']: output_lines.append(f"   Total DW(tonnes) = {self.W5:7.0f}") #
-            if opt['opdt']: output_lines.append(f"   Prop.dia./T = {self.Pdt:7.2f}") #
-            if opt['ospeed']: output_lines.append(f"   Speed (knots) = {self.V:7.2f}") #
             
-            # --- MODIFIED: Show 'Infinite' for nuclear range ---
+            # --- MODIFIED: Show GT next to Deadweight ---
+            if opt['ocdw']: output_lines.append(f"   Cargo DW(tonnes) = {self.W1:7.0f}")
+            
+            if opt['otdw']: 
+                # Display GT on the same line or next line
+                gt_str = f"   (GT = {int(gross_tonnage)})"
+                output_lines.append(f"   Total DW(tonnes) = {self.W5:7.0f} {gt_str}")
+            # --------------------------------------------
+
+            if opt['opdt']: output_lines.append(f"   Prop.dia./T = {self.Pdt:7.2f}")
+            if opt['ospeed']: output_lines.append(f"   Speed (knots) = {self.V:7.2f}")
+            
             if self.Ketype == 4: # Nuclear
                  if opt['orange']: output_lines.append("   Range(N.M.) = Infinite")
             else:
-                if opt['orange']: output_lines.append(f"   Range(N.M.) = {self.R:8.1f}") #
+                if opt['orange']: output_lines.append(f"   Range(N.M.) = {self.R:8.1f}")
             
-            if opt['oerpm']: output_lines.append(f"   Engine RPM = {self.N1:6.1f}") #
-            if opt['oprpm']: output_lines.append(f"   Propeller RPM = {self.N2:6.1f}") #
-            if opt['ospower']: output_lines.append(f"   Service power = {int(self.P1 + 0.5):6d} BHP / {int(0.7457 * self.P1 + 0.5):6d} KW") #
-            if opt['oipower']: output_lines.append(f"   Installed power = {int(self.P2 + 0.5):6d} BHP / {int(0.7457 * self.P2 + 0.5):6d} KW") #
+            if opt['oerpm']: output_lines.append(f"   Engine RPM = {self.N1:6.1f}")
+            if opt['oprpm']: output_lines.append(f"   Propeller RPM = {self.N2:6.1f}")
+            if opt['ospower']: output_lines.append(f"   Service power = {int(self.P1 + 0.5):6d} BHP / {int(0.7457 * self.P1 + 0.5):6d} KW")
+            if opt['oipower']: output_lines.append(f"   Installed power = {int(self.P2 + 0.5):6d} BHP / {int(0.7457 * self.P2 + 0.5):6d} KW")
             
             power_parts1 = []
             if opt['ope']: power_parts1.append(f"Pe = {self.P:6.1f}/{0.7457*self.P:6.1f}")
@@ -3197,21 +3249,19 @@ class ShipDesViewWidget(QWidget):
                 elif power_parts1: output_lines.append(line1 + " )")
                 elif power_parts2: output_lines.append("    ( " + line2.strip() + " )")
 
-            if opt['osmass']: output_lines.append(f"   Steel mass(tonnes) = {int(self.M1 + 0.5):5d}") #
-            if opt['oomass']: output_lines.append(f"   Outfit mass(tonnes) = {int(self.M2 + 0.5):5d}") #
-            if opt['ommass']: output_lines.append(f"   Machy mass(tonnes) = {int(self.M3 + 0.5):5d}") #
-            if opt['ofbd']: output_lines.append(f"   Freeboard(m) = {self.F5:5.2f}") #
-            if opt['oagm']: output_lines.append(f"   Approx. GM(m) = {self.G6:5.1f}") #
+            if opt['osmass']: output_lines.append(f"   Steel mass(tonnes) = {int(self.M1 + 0.5):5d}")
+            if opt['oomass']: output_lines.append(f"   Outfit mass(tonnes) = {int(self.M2 + 0.5):5d}")
+            if opt['ommass']: output_lines.append(f"   Machy mass(tonnes) = {int(self.M3 + 0.5):5d}")
+            if opt['ofbd']: output_lines.append(f"   Freeboard(m) = {self.F5:5.2f}")
+            if opt['oagm']: output_lines.append(f"   Approx. GM(m) = {self.G6:5.1f}")
             
             if self.m_Econom and ob2:
-                output_lines.append("  ------- Economic analysis:") #
-                if opt['ovyear']: output_lines.append(f"   Voyages/year = {self.V7:6.3f}") #
-                if opt['osdyear']: output_lines.append(f"   Sea days/year = {self.D1:6.2f}") #
+                output_lines.append("  ------- Economic analysis:")
+                if opt['ovyear']: output_lines.append(f"   Voyages/year = {self.V7:6.3f}")
+                if opt['osdyear']: output_lines.append(f"   Sea days/year = {self.D1:6.2f}")
                 
-                # --- MODIFIED: Economic Output (v2, $/kW) ---
                 if self.Ketype == 4: # Nuclear
                     if opt['ofcost']: 
-                        # Show the calculation: $/kW * kW -> M$
                         installed_power_kw = self.P2 * 0.7457
                         total_reactor_cost_M = (self.m_Reactor_Cost_per_kW * installed_power_kw) / 1.0e6
                         output_lines.append(f"   Reactor Cost Rate = {self.m_Reactor_Cost_per_kW:,.2f} ($/kW)")
@@ -3220,17 +3270,17 @@ class ShipDesViewWidget(QWidget):
                     
                     if opt['oirate']: output_lines.append(f"   Core Life (years) = {self.m_Core_Life:3.0f}")
                 else: # Fossil
-                    if opt['ofcost']: output_lines.append(f"   Fuel cost/tonne = {self.F8:6.2f}") #
+                    if opt['ofcost']: output_lines.append(f"   Fuel cost/tonne = {self.F8:6.2f}")
                 
-                if opt['oirate']: output_lines.append(f"   Interest rate (%%) = {self.I:6.2f}") #
-                if opt['oreyear']: output_lines.append(f"   Repayment years = {self.N:3d}") #
-                if opt['obcost']: output_lines.append(f"   Build cost = {self.S:5.2f}(M)") #
-                if opt['oacc']: output_lines.append(f"   Annual capital charges = {self.H1:5.2f}") #
+                if opt['oirate']: output_lines.append(f"   Interest rate (%%) = {self.I:6.2f}")
+                if opt['oreyear']: output_lines.append(f"   Repayment years = {self.N:3d}")
+                if opt['obcost']: output_lines.append(f"   Build cost = {self.S:5.2f}(M)")
+                if opt['oacc']: output_lines.append(f"   Annual capital charges = {self.H1:5.2f}")
                 
-                if self.Ketype == 4: # Nuclear
-                    if opt['oafc']: output_lines.append(f"   Annual Core/Decom Cost = {self.H7:5.2f}") #
-                else: # Fossil
-                    if opt['oafc']: output_lines.append(f"   Annual fuel costs = {self.H7:5.2f}") #
+                if self.Ketype == 4:
+                    if opt['oafc']: output_lines.append(f"   Annual Core/Decom Cost = {self.H7:5.2f}")
+                else:
+                    if opt['oafc']: output_lines.append(f"   Annual fuel costs = {self.H7:5.2f}")
                     if self.check_carbon_tax.isChecked():
                          output_lines.append(f"   (Includes Carbon Tax @ {self.m_CarbonTax} $/tCO2)")
                 
@@ -3238,22 +3288,77 @@ class ShipDesViewWidget(QWidget):
                     if self.design_mode == 2: # TEU
                         output_lines.append(f"   Required rate = {self.Rf * self.m_TEU_Avg_Weight:5.2f} ($/TEU)")
                     else: # Cargo
-                        output_lines.append(f"   Required freight rate = {self.Rf:5.2f} ($/tonne)") #
+                        output_lines.append(f"   Required freight rate = {self.Rf:5.2f} ($/tonne)")
+
+                # --- NEW: EEDI Calculation with GT Support ---
+                if self.check_eedi.isChecked():
+                    output_lines.append("\r\n  ------- EEDI Compliance (IMO Phase 3):")
+                    
+                    try:
+                        fuel_data = FuelConfig.get(self.combo_engine.currentText())
+                        
+                        # 1. Calculate SFC (g/kWh)
+                        lhv = self.m_LHV if self.m_LHV > 0 else 42.7
+                        eff = fuel_data["Efficiency"]
+                        sfc_g_kwh = 3600.0 / (lhv * eff)
+                        
+                        # 2. Determine Capacity (DWT or GT)
+                        eedi_type = ship_data.get("EEDI_Type", "DWT")
+                        if eedi_type == "GT":
+                            capacity = gross_tonnage
+                            cap_label = "GT"
+                        else:
+                            capacity = self.W1
+                            cap_label = "DWT"
+                            
+                        # Safety check
+                        if capacity <= 1.0: capacity = 1.0
+                        
+                        # 3. Calculate Attained EEDI
+                        p_me = 0.75 * (self.P2 * 0.7457) # 75% MCR in kW
+                        cf = fuel_data["Carbon"]         
+                        v_ref = self.V                   
+                        
+                        attained_eedi = (p_me * cf * sfc_g_kwh) / (capacity * v_ref)
+                        
+                        # 4. Calculate Required EEDI (Reference Line)
+                        a = ship_data.get("EEDI_a", 0.0)
+                        c = ship_data.get("EEDI_c", 0.0)
+                        
+                        if a > 0:
+                            # Reduction factor (30% for Phase 3)
+                            reduction = 0.30 
+                            reference_line = a * (capacity ** -c)
+                            required_eedi = reference_line * (1.0 - reduction)
+                            
+                            status = "PASS" if attained_eedi <= required_eedi else "FAIL"
+                            
+                            output_lines.append(f"   Capacity Used = {int(capacity)} ({cap_label})")
+                            output_lines.append(f"   Attained EEDI = {attained_eedi:6.2f} (gCO2/t.nm)")
+                            output_lines.append(f"   Required EEDI = {required_eedi:6.2f} (Phase 3 Limit)")
+                            output_lines.append(f"   Status: {status}")
+                            
+                            if status == "FAIL":
+                                output_lines.append("   -> Suggestion: Reduce Speed, Optimize Hull, or change Fuel.")
+                        else:
+                             output_lines.append("   (Reference line not available for this ship type)")
+
+                    except Exception as e:
+                        output_lines.append(f"   EEDI Error: Could not calculate ({str(e)})")
         
         else:
-             output_lines.append("  --- No output is selected!") #
+             output_lines.append("  --- No output is selected!")
              
-        output_lines.append("------- End of output results.") #
+        output_lines.append("------- End of output results.")
         
         formatted_output = "\r\n".join(output_lines)
         
-        if self.m_Append and self.Kcases > 1: #
+        if self.m_Append and self.Kcases > 1:
             self.m_Results += "\r\n" + formatted_output
         else:
-            self.m_Results = formatted_output #
+            self.m_Results = formatted_output
             
         self.text_results.setText(self.m_Results)
-        # Move scroll to the end
         self.text_results.verticalScrollBar().setValue(self.text_results.verticalScrollBar().maximum())
             
-        return True #
+        return True
