@@ -170,8 +170,10 @@ class ShipConfig:
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.10,
             "Cargo_Density": 0.85,
-            "EEDI_a": 1218.80, "EEDI_c": 0.488,
-            "EEDI_Enabled": True, "EEDI_Type": "DWT" # Standard
+            # EEDI
+            "EEDI_a": 1218.80, "EEDI_c": 0.488, "EEDI_Enabled": True, "EEDI_Type": "DWT",
+            # CII (Reference: a * Capacity^-c)
+            "CII_a": 5247.0, "CII_c": 0.610, "CII_Type": "DWT" 
         },
         "Bulk carrier": {
             "ID": 2,
@@ -181,8 +183,8 @@ class ShipConfig:
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.15,
             "Cargo_Density": 1.50,
-            "EEDI_a": 961.79, "EEDI_c": 0.477,
-            "EEDI_Enabled": True, "EEDI_Type": "DWT"
+            "EEDI_a": 961.79, "EEDI_c": 0.477, "EEDI_Enabled": True, "EEDI_Type": "DWT",
+            "CII_a": 4745.0, "CII_c": 0.622, "CII_Type": "DWT"
         },
         "Cargo vessel": {
             "ID": 3,
@@ -192,8 +194,8 @@ class ShipConfig:
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.30,
             "Cargo_Density": 0.60,
-            "EEDI_a": 107.48, "EEDI_c": 0.216,
-            "EEDI_Enabled": True, "EEDI_Type": "DWT"
+            "EEDI_a": 107.48, "EEDI_c": 0.216, "EEDI_Enabled": True, "EEDI_Type": "DWT",
+            "CII_a": 588.0, "CII_c": 0.216, "CII_Type": "DWT" 
         },
         "Container Ship": {
             "ID": 4,
@@ -203,8 +205,8 @@ class ShipConfig:
             "Design_Type": "Volume",
             "Profile_Factor": 1.60,
             "Cargo_Density": 0.0,
-            "EEDI_a": 174.22, "EEDI_c": 0.201,
-            "EEDI_Enabled": True, "EEDI_Type": "DWT" # Containers use DWT for simplified EEDI
+            "EEDI_a": 174.22, "EEDI_c": 0.201, "EEDI_Enabled": True, "EEDI_Type": "DWT",
+            "CII_a": 1984.0, "CII_c": 0.489, "CII_Type": "DWT"
         },
         "Cruise Ship": {
             "ID": 5,
@@ -214,9 +216,8 @@ class ShipConfig:
             "Design_Type": "Volume",
             "Profile_Factor": 2.40,
             "Cargo_Density": 0.0,
-            # Pass. Ship Reference Line: 170.84 * GT^-0.214
-            "EEDI_a": 170.84, "EEDI_c": 0.214,
-            "EEDI_Enabled": True, "EEDI_Type": "GT" # Uses Gross Tonnage
+            "EEDI_a": 170.84, "EEDI_c": 0.214, "EEDI_Enabled": True, "EEDI_Type": "GT",
+            "CII_a": 930.0, "CII_c": 0.383, "CII_Type": "GT" # Uses GT
         },
         "Superyacht": {
             "ID": 6,
@@ -226,9 +227,9 @@ class ShipConfig:
             "Design_Type": "Volume",
             "Profile_Factor": 2.20,
             "Cargo_Density": 0.0,
-            # Uses same curve as Cruise Ships for this estimation
-            "EEDI_a": 170.84, "EEDI_c": 0.214,
-            "EEDI_Enabled": True, "EEDI_Type": "GT" # Uses Gross Tonnage
+            "EEDI_a": 170.84, "EEDI_c": 0.214, "EEDI_Enabled": True, "EEDI_Type": "GT",
+            # No specific IMO CII curve for private yachts, use Cruise curve as proxy
+            "CII_a": 930.0, "CII_c": 0.383, "CII_Type": "GT"
         }
     }
 
@@ -915,9 +916,15 @@ class ShipDesViewWidget(QWidget):
         self.check_eedi.setToolTip("Calculates Energy Efficiency Design Index against IMO Reference Lines")
         self.check_eedi.toggled.connect(self._reset_dlg) # Connect to reset logic
         
+        # --- NEW: CII Checkbox ---
+        self.check_cii = QCheckBox("Calculate CII Rating")
+        self.check_cii.setToolTip("Calculates Carbon Intensity Indicator (A-E Rating) based on operational profile.")
+        self.check_cii.toggled.connect(self._reset_dlg)
+
         # Add to the Tax Layout (Row 2 of eco_grid) or a new row
         # Let's add it to the existing tax_layout for tidiness:
         tax_layout.addWidget(self.check_eedi)
+        tax_layout.addWidget(self.check_cii)
 
         # Finalize Layout
         eco_layout.addRow(eco_grid)
@@ -2942,9 +2949,13 @@ class ShipDesViewWidget(QWidget):
         if is_econom_on and eedi_allowed:
             self.check_eedi.setVisible(True)
             self.check_eedi.setEnabled(True)
+            self.check_cii.setVisible(True)
+            self.check_cii.setEnabled(True)
         else:
             self.check_eedi.setVisible(False)
             self.check_eedi.setChecked(False) # Force uncheck if hidden
+            self.check_cii.setVisible(False)
+            self.check_cii.setChecked(False)
 
         # 5. Standard Field Enabling
         self.edit_length.setEnabled(is_ship_mode)
@@ -3289,6 +3300,84 @@ class ShipDesViewWidget(QWidget):
                         output_lines.append(f"   Required rate = {self.Rf * self.m_TEU_Avg_Weight:5.2f} ($/TEU)")
                     else: # Cargo
                         output_lines.append(f"   Required freight rate = {self.Rf:5.2f} ($/tonne)")
+
+                # --- NEW: CII Calculation ---
+                if self.check_cii.isChecked():
+                    output_lines.append("\r\n  ------- CII Rating (Operational Carbon Intensity):")
+                    
+                    try:
+                        # 1. Calculate Annual CO2 Emissions
+                        # Re-calculate annual energy to be explicit
+                        service_power_kw = self.P1 * 0.7457
+                        annual_hours = self.D1 * 24.0
+                        annual_energy_MJ = service_power_kw * annual_hours * 3.6
+                        
+                        fuel_data = FuelConfig.get(self.combo_engine.currentText())
+                        lhv = self.m_LHV if self.m_LHV > 0 else 42.7
+                        eff = fuel_data["Efficiency"]
+                        
+                        if lhv > 0 and eff > 0:
+                            annual_fuel_tonnes = (annual_energy_MJ / (lhv * eff)) / 1000.0
+                        else:
+                            annual_fuel_tonnes = 0.0
+                            
+                        annual_co2 = annual_fuel_tonnes * fuel_data["Carbon"] # tonnes CO2
+                        
+                        # 2. Calculate Distance Sailed (nautical miles)
+                        annual_dist = self.V * annual_hours
+                        
+                        # 3. Determine Capacity (DWT or GT)
+                        cii_type = ship_data.get("CII_Type", "DWT")
+                        if cii_type == "GT":
+                            capacity = gross_tonnage
+                        else:
+                            capacity = self.W1
+                            
+                        if capacity < 1.0: capacity = 1.0
+                        
+                        # 4. Calculate Attained CII (grams CO2 / capacity-mile)
+                        if annual_dist > 0:
+                            attained_cii = (annual_co2 * 1_000_000) / (capacity * annual_dist)
+                        else:
+                            attained_cii = 0.0
+                            
+                        # 5. Calculate Required CII (2023 Baseline)
+                        # Reduction factor for 2023-2026 increases every year. Using 5% (2023) as base.
+                        reduction_factor = 0.05 
+                        
+                        a = ship_data.get("CII_a", 0.0)
+                        c = ship_data.get("CII_c", 0.0)
+                        
+                        if a > 0:
+                            required_cii = (a * (capacity ** -c)) * (1.0 - reduction_factor)
+                            
+                            # 6. Determine Rating
+                            # A: < 0.83 * Req
+                            # B: < 0.94 * Req
+                            # C: < 1.06 * Req (Compliance Zone)
+                            # D: < 1.19 * Req
+                            # E: > 1.19 * Req
+                            
+                            ratio = attained_cii / required_cii
+                            
+                            if ratio < 0.83: rating = "A (Major Superior)"
+                            elif ratio < 0.94: rating = "B (Minor Superior)"
+                            elif ratio <= 1.06: rating = "C (Moderate/Compliant)"
+                            elif ratio < 1.19: rating = "D (Minor Inferior)"
+                            else: rating = "E (Inferior)"
+                            
+                            output_lines.append(f"   Annual CO2 = {annual_co2:,.1f} tonnes")
+                            output_lines.append(f"   Attained CII = {attained_cii:6.2f}")
+                            output_lines.append(f"   Required CII = {required_cii:6.2f} (Year 2023 Basis)")
+                            output_lines.append(f"   CII Rating: {rating}")
+                            
+                            if "D" in rating or "E" in rating:
+                                output_lines.append("   -> WARNING: Ship is non-compliant. Needs corrective plan.")
+                        else:
+                            output_lines.append("   (CII Reference not available for this type)")
+                            
+                    except Exception as e:
+                        output_lines.append(f"   CII Error: {str(e)}")
 
                 # --- NEW: EEDI Calculation with GT Support ---
                 if self.check_eedi.isChecked():
