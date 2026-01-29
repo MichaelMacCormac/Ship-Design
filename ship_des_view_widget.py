@@ -846,6 +846,41 @@ class ShipDesViewWidget(QWidget):
         input_group.setLayout(input_layout)
         left_col.addWidget(input_group)
 
+        # --- NEW: Energy Saving Devices (ESD) Group ---
+        esd_group = QGroupBox("Energy Saving Devices (ESD)")
+        esd_layout = QGridLayout()
+        
+        # 1. Air Lubrication System (ALS)
+        self.check_als = QCheckBox("Air Lubrication")
+        self.check_als.setToolTip("Injects air bubbles under the hull to reduce friction.")
+        self.check_als.toggled.connect(self._reset_dlg)
+        
+        self.label_als_eff = QLabel("Friction Red. (%):")
+        self.edit_als_eff = QLineEdit("5.0") # Default 5% reduction on wetted surface
+        self.edit_als_eff.setFixedWidth(50)
+        self.edit_als_eff.setToolTip("Reduction applied to the Bottom Friction component.")
+        
+        # 2. Wind Assist (Placeholder)
+        self.check_wind = QCheckBox("Wind Assist")
+        self.check_wind.setToolTip("Sails/Rotors to reduce engine load.")
+        self.check_wind.toggled.connect(self._reset_dlg)
+        
+        self.label_wind_sav = QLabel("Power Sav. (%):")
+        self.edit_wind_sav = QLineEdit("10.0")
+        self.edit_wind_sav.setFixedWidth(50)
+        
+        # Layout
+        esd_layout.addWidget(self.check_als, 0, 0)
+        esd_layout.addWidget(self.label_als_eff, 0, 1)
+        esd_layout.addWidget(self.edit_als_eff, 0, 2)
+        
+        esd_layout.addWidget(self.check_wind, 1, 0)
+        esd_layout.addWidget(self.label_wind_sav, 1, 1)
+        esd_layout.addWidget(self.edit_wind_sav, 1, 2)
+        
+        esd_group.setLayout(esd_layout)
+        left_col.addWidget(esd_group) # Add to main column
+
         # --- FIXED: Economic Group ---
         eco_group = QGroupBox()
         eco_layout = QFormLayout()
@@ -1756,6 +1791,15 @@ class ShipDesViewWidget(QWidget):
         # Re-run final power/mass checks to sync everything
         # (Since dimensions changed, Power/Cost might change slightly)
         self._power() 
+        # if not self._power(): return  <-- FIND THIS LINE
+        if not self._power(): return
+        
+        # --- NEW: Apply ESD and Resistance Breakdown ---
+        self._apply_resistance_breakdown()
+        # -----------------------------------------------
+
+        # if not self._mass(): return   <-- BEFORE THIS LINE
+        if not self._mass(): return
         self._mass()
         # ----------------------------------
 
@@ -2516,6 +2560,165 @@ class ShipDesViewWidget(QWidget):
         
         return True # C++ version has no failure modes
 
+    def _apply_resistance_breakdown(self):
+        """
+        Calculates resistance components (Friction, Wave, Air) 
+        and applies Energy Saving Device (ESD) reductions.
+        """
+        # 1. Physics Constants
+        rho_sw = 1025.0       # Seawater density (kg/m3)
+        rho_air = 1.225       # Air density (kg/m3)
+        viscosity = 1.188e-6  # Kinematic viscosity (15C seawater)
+        g = 9.81
+        
+        # 2. Kinematics
+        V_ms = self.V * 0.5144 # Knots to m/s
+        if V_ms <= 0: V_ms = 0.1
+        
+        # 3. Calculate Total Resistance (R_Total) from the Solver's Power
+        # Power (kW) = Resistance (kN) * Speed (m/s) / Efficiency
+        # Therefore: Resistance (kN) = Power (kW) * Efficiency / Speed (m/s)
+        # We use P (Brake Power) and the Propulsive Efficiency (Q)
+        
+        eff_propulsive = self.Q if self.Q > 0 else 0.65
+        
+        # Note: self.P is "Service Power" at the propeller (delivered). 
+        # R_Total = (P_delivered * efficiency) / V ?? 
+        # Standard: P_effective = R_total * V.  P_delivered = P_effective / QPC.
+        # So: R_total = (P_delivered * QPC) / V
+        # self.P in code is Brake Power? Let's check _power():
+        # self.P = R8 * V^3... -> This P seems to be Effective Power (EHP) or similar? 
+        # Actually in _power(): P = R8 * V^3 ... and P1 = P / Q ... 
+        # So 'self.P' is likely Effective Power (PE) in HP or kW. 
+        # Let's assume self.P is Effective Power in HP (based on div by 427.1 in _power).
+        # Conversion: 1 HP = 0.7457 kW.
+        
+        pe_kw = self.P * 0.7457 # Effective Power in kW
+        
+        # Total Resistance (kN) = PE (kW) / V (m/s)
+        self.res_total = pe_kw / V_ms 
+        
+        # 4. Calculate Frictional Resistance (R_F)
+        # Wetted Surface (Mumford Formula)
+        # S = 1.025 * Lpp * (Cb * B + 1.7 * T)
+        cb_safe = self.C if self.C > 0 else 0.8
+        self.area_wetted = 1.025 * self.L1 * (cb_safe * self.B + 1.7 * self.T)
+        
+        # Reynolds Number
+        Re = (V_ms * self.L1) / viscosity
+        
+        # Friction Coefficient (ITTC-57)
+        # Cf = 0.075 / (log10(Re) - 2)^2
+        if Re > 0:
+            import math
+            log_re = math.log10(Re)
+            cf = 0.075 / ((log_re - 2.0)**2)
+        else:
+            cf = 0.0015
+            
+        # R_F = 0.5 * rho * S * V^2 * Cf  (Newtons) -> Divide by 1000 for kN
+        rf_newtons = 0.5 * rho_sw * self.area_wetted * (V_ms**2) * cf
+        self.res_friction = rf_newtons / 1000.0
+        
+        # 5. Calculate Air Resistance (R_Air)
+        # Estimate Frontal Area
+        # Superstructure is roughly B * (Depth - T + Superstructure_Height)
+        # We assume Superstructure adds ~10m height avg
+        frontal_area = self.B * ((self.D - self.T) + 10.0)
+        cd_air = 0.8 # Typical ship drag coef
+        
+        r_air_newtons = 0.5 * rho_air * frontal_area * (V_ms**2) * cd_air
+        self.res_air = r_air_newtons / 1000.0
+        
+        # 6. Appendage Resistance (Approximation)
+        # Usually 3-5% of total
+        self.res_app = self.res_total * 0.04 
+        
+        # 7. Wave/Residual Resistance (The Remainder)
+        # R_Wave = R_Total - (R_F + R_Air + R_App)
+        # Ensure it doesn't go negative (if approximations are off)
+        calc_sum = self.res_friction + self.res_air + self.res_app
+        self.res_wave = self.res_total - calc_sum
+        if self.res_wave < 0:
+            # Adjustment if friction calc was too aggressive compared to regression
+            self.res_wave = 0.0
+            self.res_friction = self.res_total * 0.70 # Force balance
+        
+        # --- ENERGY SAVING DEVICES (ESD) ---
+        
+        self.p_savings_kw = 0.0
+        self.esd_log = []
+        
+        # A. Air Lubrication
+        if self.check_als.isChecked():
+            try:
+                eff_pct = float(self.edit_als_eff.text())
+            except:
+                eff_pct = 5.0
+            
+            # 1. Estimate Flat Bottom Area
+            # Approx: L * B * Cb
+            area_bottom = self.L1 * self.B * cb_safe
+            
+            # 2. Ratio of Bottom Friction
+            ratio_bottom = area_bottom / (self.area_wetted if self.area_wetted > 0 else 1.0)
+            if ratio_bottom > 1.0: ratio_bottom = 1.0
+            
+            r_f_bottom = self.res_friction * ratio_bottom
+            
+            # 3. Apply Savings
+            # Saving Force = Bottom_Friction * Efficiency
+            drag_reduction_kn = r_f_bottom * (eff_pct / 100.0)
+            
+            # 4. Convert to Power Savings
+            # Power = Force * V
+            power_saved = drag_reduction_kn * V_ms
+            
+            self.p_savings_kw += power_saved
+            self.esd_log.append(f"Air Lubrication: -{power_saved:.1f} kW (on {ratio_bottom*100:.0f}% of hull)")
+            
+            # Reduce Total Resistance for display
+            self.res_total -= drag_reduction_kn
+            self.res_friction -= drag_reduction_kn
+
+        # B. Wind Assist
+        if self.check_wind.isChecked():
+            try:
+                sav_pct = float(self.edit_wind_sav.text())
+            except:
+                sav_pct = 10.0
+                
+            # Simple Power Reduction
+            pe_current = pe_kw - self.p_savings_kw # Apply sequentially
+            wind_sav_kw = pe_current * (sav_pct / 100.0)
+            
+            self.p_savings_kw += wind_sav_kw
+            self.esd_log.append(f"Wind Assist: -{wind_sav_kw:.1f} kW ({sav_pct}%)")
+            
+            # Treat wind as negative drag
+            wind_drag_red_kn = wind_sav_kw / V_ms
+            self.res_total -= wind_drag_red_kn
+
+        # --- APPLY TO SHIP STATE ---
+        # Reduce the Service Power (P1) and Installed Power (P2)
+        # Note: P1 is in HP in the member variables? 
+        # _power sets P1 = (P / Q) * ...
+        # P1 is Brake Horse Power (BHP).
+        
+        # Convert total savings (kW) to BHP
+        savings_bhp = self.p_savings_kw / 0.7457
+        
+        # Apply Savings
+        self.P1_Original = self.P1 # Store for reference
+        self.P1 -= savings_bhp
+        
+        if self.P1 < 0: self.P1 = 100.0 # Safety floor
+        
+        # Usually we keep Installed Power (P2) same for safety (Wind might die),
+        # but ALS allows smaller engines. Let's reduce P2 proportionally.
+        self.P2_Original = self.P2
+        self.P2 -= savings_bhp
+
     def _mass(self):
         """Port of Sub_mass - FIXED to restore legacy C++ math for standard engines"""
         # 1. Calculate Hull Mass (Steel)
@@ -2916,6 +3119,13 @@ class ShipDesViewWidget(QWidget):
         is_econom_on = self.check_econom.isChecked()
         is_nuclear = (self.combo_engine.currentIndex() == 3) 
 
+        # --- NEW: ESD Logic ---
+        self.edit_als_eff.setEnabled(self.check_als.isChecked())
+        self.edit_als_eff.setEnabled(self.check_als.isChecked())
+        
+        self.edit_wind_sav.setEnabled(self.check_wind.isChecked())
+        self.label_wind_sav.setEnabled(self.check_wind.isChecked())
+
         # --- FIX: Toggle Visibility of TEU Inputs ---
         # If you implemented the 'layout_teu_container' from the previous fix, use it:
         if hasattr(self, 'layout_teu_container'):
@@ -3211,6 +3421,37 @@ class ShipDesViewWidget(QWidget):
             if opt['ocb']: output_lines.append(f"   CB = {self.C:5.3f}")
             if opt['odisp']: output_lines.append(f"   Disp. (tonnes) = {int(self.M + 0.5):7d}")
             
+            # --- NEW: Resistance Breakdown Output ---
+            # Check if we have calculated resistance (check for attribute)
+            if hasattr(self, 'res_total'):
+                output_lines.append("\r\n  ------- Resistance Breakdown:")
+                output_lines.append(f"   Total Resistance: {self.res_total:.1f} kN")
+                
+                # Percentages
+                if self.res_total > 0:
+                    p_fric = (self.res_friction / self.res_total) * 100
+                    p_wave = (self.res_wave / self.res_total) * 100
+                    p_air = (self.res_air / self.res_total) * 100
+                    p_app = (self.res_app / self.res_total) * 100
+                else:
+                    p_fric=0; p_wave=0; p_air=0; p_app=0
+                
+                output_lines.append(f"   - Friction:  {self.res_friction:.1f} kN ({p_fric:.1f}%)")
+                output_lines.append(f"   - Wave/Res.: {self.res_wave:.1f} kN ({p_wave:.1f}%)")
+                output_lines.append(f"   - Air/Wind:  {self.res_air:.1f} kN ({p_air:.1f}%)")
+                output_lines.append(f"   - Appendage: {self.res_app:.1f} kN ({p_app:.1f}%)")
+                
+                # Show ESD Log
+                if hasattr(self, 'esd_log') and self.esd_log:
+                    output_lines.append("   [ESD Active]")
+                    for log in self.esd_log:
+                        output_lines.append(f"     -> {log}")
+                    # Show Power Delta
+                    orig_kw = self.P1_Original * 0.7457
+                    new_kw = self.P1 * 0.7457
+                    output_lines.append(f"     -> New Service Power: {int(new_kw)} kW (was {int(orig_kw)})")
+            # ----------------------------------------
+
             # --- TEU Output ---
             if self.design_mode == 2:
                 est_teu = self._estimate_teu_capacity(self.L1, self.B, self.D)
