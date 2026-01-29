@@ -881,6 +881,54 @@ class ShipDesViewWidget(QWidget):
         esd_group.setLayout(esd_layout)
         left_col.addWidget(esd_group) # Add to main column
 
+        # --- NEW: Auxiliary & Cargo Loads Group ---
+        aux_group = QGroupBox("Auxiliary & Hotel Loads")
+        aux_layout = QGridLayout()
+        
+        # 1. Master Switch
+        self.check_aux_enable = QCheckBox("Include Auxiliary Power Analysis")
+        self.check_aux_enable.setToolTip("Calculates electrical loads for crew, hotel, and reefers.\nAdds weight for generators and fuel.")
+        self.check_aux_enable.toggled.connect(self._reset_dlg)
+        aux_layout.addWidget(self.check_aux_enable, 0, 0, 1, 3)
+        
+        # 2. Base Load (Hotel)
+        self.label_aux_base = QLabel("Base Hotel Load (kW):")
+        self.edit_aux_base = QLineEdit("250.0") # Default for small cargo
+        self.edit_aux_base.setToolTip("Lighting, pumps, nav, crew AC (excluding cargo).")
+        aux_layout.addWidget(self.label_aux_base, 1, 0)
+        aux_layout.addWidget(self.edit_aux_base, 1, 1)
+        
+        # 3. Refrigeration Mode
+        aux_layout.addWidget(QLabel("Cargo Cooling:"), 2, 0)
+        self.combo_aux_mode = QComboBox()
+        self.combo_aux_mode.addItems(["None", "Reefer Plugs (Container)", "Insulated Hold (Bulk)"])
+        self.combo_aux_mode.currentIndexChanged.connect(self._reset_dlg)
+        aux_layout.addWidget(self.combo_aux_mode, 2, 1, 1, 2)
+        
+        # 4. Dynamic Inputs (Row 3)
+        self.label_aux_p1 = QLabel("Reefer Capacity (%):")
+        self.edit_aux_p1 = QLineEdit("10.0") # % of TEU or Vol
+        self.label_aux_p2 = QLabel("Load (kW/unit):")
+        self.edit_aux_p2 = QLineEdit("3.0") # kW/TEU or kW/m3
+        
+        aux_layout.addWidget(self.label_aux_p1, 3, 0)
+        aux_layout.addWidget(self.edit_aux_p1, 3, 1)
+        
+        # Row 4 (Power density)
+        aux_layout.addWidget(self.label_aux_p2, 4, 0)
+        aux_layout.addWidget(self.edit_aux_p2, 4, 1)
+        
+        # 5. Economics (Freight Premium)
+        self.label_aux_prem = QLabel("Freight Premium($):")
+        self.edit_aux_prem = QLineEdit("0.0")
+        self.edit_aux_prem.setToolTip("Extra income per tonne/TEU for refrigerated cargo")
+        aux_layout.addWidget(self.label_aux_prem, 5, 0)
+        aux_layout.addWidget(self.edit_aux_prem, 5, 1)
+        
+        aux_group.setLayout(aux_layout)
+        left_col.addWidget(aux_group)
+        # ------------------------------------------
+
         # --- FIXED: Economic Group ---
         eco_group = QGroupBox()
         eco_layout = QFormLayout()
@@ -1494,16 +1542,16 @@ class ShipDesViewWidget(QWidget):
 
     def _solve_volume_limit(self):
         """
-        Phase 3 Expansion Loop:
-        If ship is too small internally, expand dimensions (L,B,D).
-        RE-CALCULATES POWER & WEIGHT to ensure the heavier ship floats.
+        Phase 3 Expansion Loop (ROBUST):
+        Expands dimensions if volume is insufficient.
+        Handles power calculation failures gracefully.
         """
         if not self.m_VolumeLimit:
             return True 
 
         req, avail, ratio = self._get_volume_status()
         
-        # If ratio <= 1.0, we fit! No need to do anything.
+        # If ratio <= 1.0, we fit!
         if ratio <= 1.0:
             return True 
 
@@ -1511,75 +1559,85 @@ class ShipDesViewWidget(QWidget):
         self.text_results.append(f"Required: {int(req)} m3 | Available: {int(avail)} m3")
         self.text_results.append(f"Expanding ship dimensions...")
 
-        # Store original payload target (The cargo we MUST carry)
+        # Store original payload and state to revert if needed
         target_payload = self.W 
+        L_orig, B_orig, D_orig = self.L1, self.B, self.D
         
-        for i in range(100):
-            # 1. Expand L by a small factor
-            expansion_factor = 1.015 # Expand by 1.5% per step
+        # Safety: Limit iterations
+        for i in range(50):
+            # 1. Expand Dimensions
+            expansion_factor = 1.02 # Expand by 2% per step
             self.L1 *= expansion_factor
             
-            # 2. Scale B and D to maintain hull form ratios
             if self.L1 > 0:
-                if self.m_Lbratio: 
-                    self.B = self.L1 / self.m_LbratioV
-                else:
-                    self.B *= expansion_factor
+                if self.m_Lbratio: self.B = self.L1 / self.m_LbratioV
+                else: self.B *= expansion_factor
                 self.D *= expansion_factor
 
-            # 3. CRITICAL FIX: Update Power for the larger ship
-            # A bigger ship has more resistance -> Needs more Power -> More Fuel -> More Weight
-            # We estimate a Draft (T) for the power calc, then correct it later
-            self.T = self.D * 0.7 # Rough estimate to allow power calc to run
-            self._power() 
+            # 2. Estimate Draft (T) for this new hull
+            # We assume similar block coefficient (C)
+            C_safe = self.C if self.C > 0 else 0.8
+            # Estimate T based on scaling (Volume grows by cube, Mass roughly by cube)
+            # Just keeping the D/T ratio constant is a safe bet for the solver
+            self.T = self.D * 0.7 
 
-            # 4. Recalculate Weights (Steel, Outfit, Machinery, Fuel)
+            # 3. Try to Calculate Power for this new shape
+            # If the prop pitch fails here, we catch it and force a "safe" assumption
+            power_ok = self._power()
+            
+            if not power_ok:
+                # If power failed (likely prop pitch), assume Power scales with Displacement^2/3
+                # This allows the loop to continue resizing without crashing
+                self.P1 *= (expansion_factor ** 2) 
+                self.P2 *= (expansion_factor ** 2)
+            
+            # 4. Recalculate Weights (Now that we have new Power/Size)
             self._mass() 
             
-            # 5. Calculate New Lightship
-            # Formula from _mass(): M0 = (M1 + M2 + M3) * 1.02
-            new_lightship = (self.M1 + self.M2 + self.M3) * 1.02
-            
-            # 6. Calculate New Required Displacement
-            # New M = Payload + New Lightship + Fuel + Margin
+            # 5. Check Displacement Requirement
+            # M = Payload + Lightship + Fuel + Margin
             fuel_mass = self.calculated_fuel_mass if hasattr(self, 'calculated_fuel_mass') else 0
+            # Note: M3 (Machinery) is updated in _mass, M2 (Outfit) updated in _mass
+            new_lightship = (self.M1 + self.M2 + self.M3) * 1.02
             misc_mass = 13.0 * (self.M ** 0.35) 
             
             required_displacement = target_payload + new_lightship + fuel_mass + misc_mass
             
-            # 7. Update System State
+            # 6. Update actual Draft required to float this mass
             self.M = required_displacement
-            
-            # 8. Calculate New Draft required to support this displacement
-            # M = L * B * T * C * 1.025  =>  T = M / (L * B * C * 1.025)
-            C_safe = self.C if self.C > 0 else 0.8
             new_T = self.M / (self.L1 * self.B * C_safe * 1.025)
             
-            # 9. Check Draft Constraints (Min Draft)
-            min_T = 0.45 * self.D 
-            if new_T < min_T:
-                new_T = min_T
-                # If we deepen draft for ballast, Displacement increases further
-                self.M = self.L1 * self.B * new_T * C_safe * 1.025
-                
+            # Check freeboard constraint roughly
+            if new_T > (self.D * 0.9): 
+                new_T = self.D * 0.9 # Cap draft
+            
             self.T = new_T
 
-            # 10. Check Volume Again
+            # 7. Check Volume Again
             req, avail, ratio = self._get_volume_status()
             
             if ratio <= 1.0:
                 self.text_results.append(f"-> Converged at L={self.L1:.1f}m")
                 self.text_results.append(f"-> Draft adjusted to {self.T:.1f}m (New Disp: {int(self.M)}t)")
-                
-                # Update Cargo DW (W1) to match final state
                 self.W1 = self.M - new_lightship - fuel_mass - misc_mass
                 return True 
 
-        self.text_results.append("-> WARNING: Volume expansion limit reached (Max Iterations).")
+        self.text_results.append("-> WARNING: Volume expansion limit reached.")
+        # Restore originals if it went crazy? No, keep the expanded one but warn.
         return False
 
     def on_calculate(self):
         """Port of OnButtonCal"""
+
+        # --- FIX: CLEAR STALE DATA ---
+        # Reset auxiliary variables so they don't corrupt the solver loop
+        keys_to_reset = ['M_aux_mach', 'M_aux_outfit', 'W_aux_fuel', 
+                         'aux_cost_annual', 'calculated_fuel_mass']
+        for k in keys_to_reset:
+            if hasattr(self, k):
+                delattr(self, k)
+        # -----------------------------
+
         # 1. Update members from UI
         if not self._update_ui_to_data():
             return # Stop if input is invalid
@@ -1780,6 +1838,16 @@ class ShipDesViewWidget(QWidget):
         
         # ... (Previous code) ...
         
+        # --- NEW: Apply ESD ---
+        self._apply_resistance_breakdown()
+
+        # --- NEW: Calculate Aux Loads ---
+        # Must be before Mass (adds weight) and Cost (adds fuel)
+        self._auxiliary()
+        # -------------------------------
+
+        if not self._mass(): return
+
         # Restore original design mode
         self.m_Cargo = self.design_mode
             
@@ -1788,6 +1856,26 @@ class ShipDesViewWidget(QWidget):
         # This will modify L1, B, D, T only if necessary
         self._solve_volume_limit()
         
+        # Re-run final power/mass checks to sync everything
+        # Capture the result of _power()
+        if not self._power(): 
+            # If it fails here, it's likely the Prop Pitch issue due to the new larger size.
+            # We can try to auto-correct by lowering RPM slightly (larger ship = slower prop).
+            self.text_results.append("\n[Auto-Correcting Propeller RPM for larger hull...]")
+            self.N2 *= 0.9 # Reduce Prop RPM by 10%
+            self.N1 *= 0.9 # Reduce Engine RPM by 10%
+            
+            if not self._power():
+                self.text_results.append("ERROR: Propeller design failed even after adjustment.")
+                self.text_results.append("Try reducing 'Engine RPM' or unchecking 'Prop.dia./T ratio'.")
+                return # Stop to show errors
+        
+        # --- NEW: Apply ESD and Resistance Breakdown ---
+        self._apply_resistance_breakdown()
+        # -----------------------------------------------
+
+        if not self._mass(): return
+
         # Re-run final power/mass checks to sync everything
         # (Since dimensions changed, Power/Cost might change slightly)
         self._power() 
@@ -2547,6 +2635,11 @@ class ShipDesViewWidget(QWidget):
 
         # ... (Rest of Rt calculation stays the same) ...
         
+        # --- MODIFIED: Add Aux Fuel Cost ---
+        if hasattr(self, 'aux_cost_annual'):
+            self.H7 += self.aux_cost_annual
+        # -----------------------------------
+
         # Rt = self.H1 + self._H2 + H3 + self._H4 + self._H5 + self._H6 + self.H7 + self._H8
         Rt = self.H1 + self.m_H2_Crew + H3 + self.m_H4_Port + self.m_H5_Stores + self.m_H6_Overhead + self.H7 + self.m_H8_Other
         
@@ -2788,6 +2881,18 @@ class ShipDesViewWidget(QWidget):
 
         M0 = (self.M1 + self.M2 + self.M3) * 1.02 # Lightship mass (+2% margin)
         
+        # --- MODIFIED: Add Aux Weights ---
+        # Add Gensets to Machinery
+        if hasattr(self, 'M_aux_mach'):
+            self.M3 += self.M_aux_mach
+            
+        # Add Insulation to Outfit
+        if hasattr(self, 'M_aux_outfit'):
+            self.M2 += self.M_aux_outfit
+        # --------------------------------
+        
+        M0 = (self.M1 + self.M2 + self.M3) * 1.02
+
         # --- FUEL MASS (W3) CALCULATION ---
         
         V_safe = self.V if self.V > 0.1 else 0.1
@@ -2826,6 +2931,11 @@ class ShipDesViewWidget(QWidget):
                 
                 W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]
                 self.calculated_fuel_mass = W3
+
+        # --- MODIFIED: Add Aux Fuel to W3 ---
+        if hasattr(self, 'W_aux_fuel'):
+            W3 += self.W_aux_fuel # Add generator fuel to total fuel weight
+        # -----------------------------------
 
         W4 = 13.0 * (self.M ** 0.35) 
         
@@ -3111,6 +3221,42 @@ class ShipDesViewWidget(QWidget):
         elif self.radio_teu.isChecked():
              self.radio_cargo.setChecked(True)
 
+        # ... (Auxiliary Logic Block) ...
+        # 1. check if enabled
+        is_aux_on = self.check_aux_enable.isChecked()
+        
+        self.label_aux_base.setEnabled(is_aux_on)
+        self.edit_aux_base.setEnabled(is_aux_on)
+        self.combo_aux_mode.setEnabled(is_aux_on)
+        
+        # 2. Handle Refrigeration Inputs
+        aux_mode = self.combo_aux_mode.currentIndex() # 0=None, 1=Reefer, 2=Hold
+        
+        show_ref_inputs = is_aux_on and (aux_mode > 0)
+        self.label_aux_p1.setEnabled(show_ref_inputs)
+        self.edit_aux_p1.setEnabled(show_ref_inputs)
+        self.label_aux_p2.setEnabled(show_ref_inputs)
+        self.edit_aux_p2.setEnabled(show_ref_inputs)
+        self.label_aux_prem.setEnabled(show_ref_inputs)
+        self.edit_aux_prem.setEnabled(show_ref_inputs)
+        
+        # 3. Dynamic Labels based on Mode
+        if aux_mode == 1: # Reefer (Container)
+            self.label_aux_p1.setText("Reefer Plugs (%TEU):")
+            self.label_aux_p2.setText("Load (kW/TEU):")
+            self.edit_aux_p2.setToolTip("Avg draw per reefer (typ. 2.5-4.0 kW)")
+        elif aux_mode == 2: # Insulated Hold
+            self.label_aux_p1.setText("Cooled Vol (%):")
+            self.label_aux_p2.setText("Cooling (kW/1000m3):") # Note unit change
+            self.edit_aux_p2.setToolTip("Typ. 10-20 kW per 1000m3")
+        else:
+            self.label_aux_p1.setText("Reefer Capacity (%):") # Default
+            self.label_aux_p2.setText("Load (kW/unit):")
+            
+        # 4. Intelligent Default for Base Load
+        # If user hasn't touched it (logic could be improved), hint based on ship type
+        # For now, we just leave it editable.
+
         # 3. Determine Modes
         is_cargo_mode = self.radio_cargo.isChecked()
         is_ship_mode = self.radio_ship.isChecked()
@@ -3227,6 +3373,96 @@ class ShipDesViewWidget(QWidget):
     def on_check_econom(self, checked):
         self.m_Econom = checked
         self._reset_dlg()
+
+    def _auxiliary(self):
+        """
+        Calculates Auxiliary (Hotel + Cargo) Loads.
+        Updates self.P_aux (kW) and self.M_aux_mach (tonnes).
+        """
+        # Default values (Legacy mode)
+        self.P_aux_total = 0.0
+        self.P_hotel = 0.0
+        self.P_cargo_cooling = 0.0
+        self.M_aux_mach = 0.0      # Generator mass
+        self.M_aux_outfit = 0.0    # Insulation mass
+        self.W_aux_fuel = 0.0      # Fuel for aux engines
+        self.aux_cost_annual = 0.0 # Fuel cost
+        
+        if not self.check_aux_enable.isChecked():
+            return
+            
+        try:
+            # 1. Base Hotel Load
+            self.P_hotel = float(self.edit_aux_base.text())
+            
+            # 2. Cargo Cooling Load
+            mode = self.combo_aux_mode.currentIndex()
+            pct = float(self.edit_aux_p1.text()) / 100.0
+            load_factor = float(self.edit_aux_p2.text())
+            
+            if mode == 1: # Reefer Plugs (Container)
+                # Logic: Total TEU * % * kW/TEU
+                # We need Total TEU. In Cargo mode, estimating TEU is tricky.
+                if self.design_mode == 2: # TEU Mode
+                    teu_count = self.m_TEU
+                else:
+                    # Estimate TEU from DWT or Volume
+                    # Rough approx: 1 TEU ~ 14t Cargo + Box weight
+                    teu_count = self.W1 / 14.0 
+                
+                num_reefers = teu_count * pct
+                self.P_cargo_cooling = num_reefers * load_factor
+                
+            elif mode == 2: # Insulated Hold (Bulk/General)
+                # Logic: Volume * % * kW/1000m3
+                vol_hull = self.L1 * self.B * self.D * self.C
+                vol_cooled = vol_hull * pct
+                self.P_cargo_cooling = (vol_cooled / 1000.0) * load_factor
+                
+                # Insulation Weight Penalty
+                # Approx: 20kg per m3 of cooled volume (Insulation + Grating)
+                self.M_aux_outfit = vol_cooled * 0.020 
+
+            # 3. Total Aux Load
+            self.P_aux_total = self.P_hotel + self.P_cargo_cooling
+            
+            # 4. Mass Impact (Generators)
+            # Modern Gensets approx 10-15 kg/kW installed
+            # We assume installed capacity = 1.25 * Load (Safety margin)
+            installed_aux_kw = self.P_aux_total * 1.25
+            self.M_aux_mach = (installed_aux_kw * 12.0) / 1000.0 # Tonnes
+            
+            # 5. Fuel Consumption (Annual)
+            # Aux SFC ~ 220 g/kWh (Higher than main engine usually)
+            sfc_aux = 220.0 
+            
+            # Sea Usage
+            hours_sea = self.D1 * 24.0
+            energy_sea = self.P_aux_total * hours_sea # kWh
+            
+            # Port Usage
+            # Assume 365 - SeaDays = PortDays
+            # In port, Hotel load stays, Cargo load might decrease (plugged into shore?)
+            # Let's assume ship generates own power (common)
+            hours_port = (365.0 - self.D1) * 24.0
+            energy_port = self.P_aux_total * hours_port # kWh
+            
+            total_energy_kwh = energy_sea + energy_port
+            total_fuel_kg = total_energy_kwh * sfc_aux
+            
+            self.aux_fuel_annual_tonnes = total_fuel_kg / 1000.0
+            
+            # Cost ($/tonne of fuel from input)
+            self.aux_cost_annual = self.aux_fuel_annual_tonnes * self.F8
+            
+            # 6. Fuel Weight for Range (W3 impact)
+            # Voyage Hours = R / V
+            voyage_hours = self.R / (self.V if self.V > 0.1 else 0.1)
+            voyage_energy = self.P_aux_total * voyage_hours
+            self.W_aux_fuel = (voyage_energy * sfc_aux) / 1000.0
+            
+        except Exception as e:
+            self._show_error(f"Aux Calc Error: {e}")
 
     def on_config_route(self):
         """Opens the Route Profiler Dialog"""
@@ -3451,6 +3687,49 @@ class ShipDesViewWidget(QWidget):
                     new_kw = self.P1 * 0.7457
                     output_lines.append(f"     -> New Service Power: {int(new_kw)} kW (was {int(orig_kw)})")
             # ----------------------------------------
+
+            # --- NEW: Auxiliary Analysis Output ---
+            if self.check_aux_enable.isChecked():
+                output_lines.append("\r\n  ------- Power & Hotel Analysis:")
+                
+                # Compare Prop vs Aux
+                prop_kw = self.P1 * 0.7457
+                total_load = prop_kw + self.P_aux_total
+                pct_aux = (self.P_aux_total / total_load) * 100 if total_load > 0 else 0
+                
+                output_lines.append(f"   Propulsion Power: {int(prop_kw):,} kW")
+                output_lines.append(f"   Auxiliary Power:  {int(self.P_aux_total):,} kW ({pct_aux:.1f}% of total)")
+                output_lines.append(f"     - Base Hotel:   {int(self.P_hotel)} kW")
+                output_lines.append(f"     - Cargo Load:   {int(self.P_cargo_cooling)} kW")
+                
+                output_lines.append(f"   Aux Generator Wt: {self.M_aux_mach:.1f} tonnes")
+                if self.M_aux_outfit > 0:
+                    output_lines.append(f"   Insulation Wt:    {self.M_aux_outfit:.1f} tonnes")
+                    
+                output_lines.append(f"   Aux Fuel Annual:  {self.aux_fuel_annual_tonnes:,.1f} tonnes")
+                output_lines.append(f"   Aux Fuel Cost:    {self.aux_cost_annual/1e6:.3f} M$")
+                
+                # Freight Premium Analysis
+                try:
+                    prem_rate = float(self.edit_aux_prem.text())
+                    if prem_rate > 0:
+                        is_teu = (self.design_mode == 2)
+                        cargo_units = self.m_TEU if is_teu else self.W1
+                        
+                        extra_income = cargo_units * prem_rate
+                        # Only apply premium to the refrigerated portion? 
+                        # Usually premium applies to reefer boxes only.
+                        mode = self.combo_aux_mode.currentIndex()
+                        pct = float(self.edit_aux_p1.text()) / 100.0
+                        extra_income *= pct
+                        
+                        net_profit_delta = extra_income - self.aux_cost_annual
+                        
+                        output_lines.append(f"   Reefer Premium:   +{extra_income/1e6:.3f} M$")
+                        output_lines.append(f"   Net Aux Impact:   {net_profit_delta/1e6:+.3f} M$")
+                except:
+                    pass
+            # --------------------------------------
 
             # --- TEU Output ---
             if self.design_mode == 2:
