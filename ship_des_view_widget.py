@@ -1852,15 +1852,9 @@ class ShipDesViewWidget(QWidget):
         self.m_Cargo = self.design_mode
             
         # --- NEW: Phase 3 Volume Solver ---
-        # Run the volume expansion check/loop
-        # This will modify L1, B, D, T only if necessary
         self._solve_volume_limit()
         
-        # Re-run final power/mass checks to sync everything
-        # Capture the result of _power()
         if not self._power(): 
-            # If it fails here, it's likely the Prop Pitch issue due to the new larger size.
-            # We can try to auto-correct by lowering RPM slightly (larger ship = slower prop).
             self.text_results.append("\n[Auto-Correcting Propeller RPM for larger hull...]")
             self.N2 *= 0.9 # Reduce Prop RPM by 10%
             self.N1 *= 0.9 # Reduce Engine RPM by 10%
@@ -1876,20 +1870,26 @@ class ShipDesViewWidget(QWidget):
 
         if not self._mass(): return
 
-        # Re-run final power/mass checks to sync everything
-        # (Since dimensions changed, Power/Cost might change slightly)
         self._power() 
-        # if not self._power(): return  <-- FIND THIS LINE
-        if not self._power(): return
-        
-        # --- NEW: Apply ESD and Resistance Breakdown ---
-        self._apply_resistance_breakdown()
-        # -----------------------------------------------
 
-        # if not self._mass(): return   <-- BEFORE THIS LINE
+        if not self._power(): return
+
+        self._apply_resistance_breakdown()
+
+        self._auxiliary() 
+
+        if not self._mass(): return
+
+        if self.W1 <= 0:
+             self.m_Results += "\n!!! CRITICAL WARNING !!!\n"
+             self.m_Results += "Auxiliary weight > Cargo Capacity.\n"
+             self.m_Results += "Increase Ship Dimensions or decrease Aux Load.\n"
+
+
+        self._apply_resistance_breakdown()
+
         if not self._mass(): return
         self._mass()
-        # ----------------------------------
 
         if self.m_Econom: #
             # _cost() will now use Ketype to check for nuclear
@@ -2031,7 +2031,6 @@ class ShipDesViewWidget(QWidget):
             'ignpth': self.ignpth,
         }
         # --- Temporarily suppress pop-up errors for the loop ---
-        # This is the feature from request 1
         self.ignspd = True
         self.ignpth = True
 
@@ -2082,17 +2081,13 @@ class ShipDesViewWidget(QWidget):
                     
                     
                     # --- B. Run the main calculation ---
-                    # on_calculate() reads from the UI fields we just set
                     self.on_calculate() 
                     
                     # --- C. Extract results ---
                     row = [f"{value:.6g}"]
                     if not self.CalculatedOk:
-                        # This is the other part of request 1:
-                        # Write "CALCULATION FAILED" for anomalous results
                         row.extend(["CALCULATION FAILED"] * (len(header) - 1))
                     else:
-                        # Extract results from member variables
                         row.extend([
                             f"{self.L1:.2f}",
                             f"{self.B:.2f}",
@@ -2122,9 +2117,6 @@ class ShipDesViewWidget(QWidget):
             self._show_error(f"Failed to write CSV file: {e}")
         
         finally:
-            # --- Restore original UI state ---
-            # This is crucial so the user's form is not left
-            # in the state of the loop's last run.
             self.edit_speed.setText(original_ui_state['speed'])
             self.edit_weight.setText(original_ui_state['weight'])
             self.edit_teu.setText(original_ui_state['teu'])
@@ -2141,22 +2133,15 @@ class ShipDesViewWidget(QWidget):
             self.check_btratio.setChecked(original_ui_state['btratio_c'])
             self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
             
-            # --- Restore error flag state ---
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             
-            # Reset the main results window
-            self.m_Results = "Press the Calculate button\r\nto find ship dimensions ..."
-            # ... (rest of the finally block) ...
-            # Reset the main results window
             self.m_Results = "Press the Calculate button\r\nto find ship dimensions ..."
             self.text_results.setText(self.m_Results)
             self.CalculatedOk = False
             self.Kcases = 0
             self._reset_dlg()
-            # --- End restoring state ---
 
-    # --- NEW: Plotting Function ---
     def on_run_plot(self):
         """
         Runs a calculation over a range (1D or 2D) and plots the results.
@@ -2540,7 +2525,6 @@ class ShipDesViewWidget(QWidget):
         ship_data = ShipConfig.get(ship_name)
         
         # Calculate G3 (KG of ship)
-        # Old: if Tanker G3=0.63*D, Bulk=0.57*D, Cargo=0.62*D
         G3 = ship_data["Stability_Factor"] * self.D
         C7 = 0.67 * self.C + 0.32
         C_safe = self.C if self.C != 0 else 1e-9
@@ -2558,21 +2542,17 @@ class ShipDesViewWidget(QWidget):
         
         C_safe = self.C if self.C != 0 else 1e-9
         
-        # S8 = self._S1 * (self.M1 ** (2/3)) * (self.L1 ** (1/3)) / C_safe + self._S2 * self.M1
         S8 = self.m_S1_Steel1 * (self.M1 ** (2/3)) * (self.L1 ** (1/3)) / C_safe + self.m_S2_Steel2 * self.M1
         
-        # S9 = self._S3 * (self.M2 ** (2/3)) + self._S4 * (self.M2 ** 0.95)
         S9 = self.m_S3_Outfit1 * (self.M2 ** (2/3)) + self.m_S4_Outfit2 * (self.M2 ** 0.95)
         
         # --- MODIFIED: Nuclear Capital Cost (v2, from $/kW) ---
         S0_nuclear = 0.0 # Will store the calculated nuclear cost
         if self.Ketype == 4: # Nuclear
-            # Calculate total reactor cost from the $/kW rate
             installed_power_kw = self.P2 * 0.7457
             S0_nuclear = self.m_Reactor_Cost_per_kW * installed_power_kw
             S0 = S0_nuclear # This is the capital cost in $
         else: # Fossil
-            # S0 = self._S5 * (self.P1 ** 0.82) + self._S6 * (self.P1 ** 0.82) # C++ check?!
             S0 = self.m_S5_Machinery1 * (self.P1 ** 0.82) + self.m_S6_Machinery2 * (self.P1 ** 0.82)
         
         self.S = S8 + S9 + S0
@@ -2602,12 +2582,7 @@ class ShipDesViewWidget(QWidget):
         else: 
             # FOSSIL / H2 / AMMONIA / ELECTRIC
             
-            # 1. Calculate Annual Fuel Consumption (Tonnes)
-            # We already calculated mass per voyage in _mass, but we need annual.
-            # Voyage Hours = Range / Speed
-            # Annual Sea Days = D1.
-            # Hours per year at sea = D1 * 24.0
-            
+            # 1. Calculate Annual Fuel Consumption (Tonnes)           
             service_power_kw = self.P1 * 0.7457
             annual_energy_MJ = service_power_kw * (self.D1 * 24.0) * 3.6
             
@@ -2621,26 +2596,17 @@ class ShipDesViewWidget(QWidget):
             annual_fuel_tonnes *= self.m_Power_Factor
             
             # 2. Calculate Fuel Cost
-            # F8 is the user input price ($/tonne). 
-            # Note: For electric, user must input $/tonne equivalent (approx 1000 * $/kWh / 1000?) 
-            # Actually, standard is $/tonne. 
             self.H7 = annual_fuel_tonnes * self.F8
             
             # 3. Calculate Carbon Tax
             if self.check_carbon_tax.isChecked():
-                # Carbon Intensity from Config (e.g., 0.0 for H2, 3.1 for Diesel)
                 co2_tonnes = annual_fuel_tonnes * fuel_data["Carbon"]
                 annual_tax_bill = co2_tonnes * self.m_CarbonTax
                 self.H7 += annual_tax_bill
 
-        # ... (Rest of Rt calculation stays the same) ...
-        
-        # --- MODIFIED: Add Aux Fuel Cost ---
         if hasattr(self, 'aux_cost_annual'):
             self.H7 += self.aux_cost_annual
-        # -----------------------------------
-
-        # Rt = self.H1 + self._H2 + H3 + self._H4 + self._H5 + self._H6 + self.H7 + self._H8
+        
         Rt = self.H1 + self.m_H2_Crew + H3 + self.m_H4_Port + self.m_H5_Stores + self.m_H6_Overhead + self.H7 + self.m_H8_Other
         
         self.S *= 1.0e-6 # Convert total build cost to M$ for output
@@ -2651,7 +2617,7 @@ class ShipDesViewWidget(QWidget):
         if W7 == 0: W7 = 1e-9 # Avoid division by zero
         self.Rf = Rt / W7
         
-        return True # C++ version has no failure modes
+        return True
 
     def _apply_resistance_breakdown(self):
         """
@@ -2668,31 +2634,16 @@ class ShipDesViewWidget(QWidget):
         V_ms = self.V * 0.5144 # Knots to m/s
         if V_ms <= 0: V_ms = 0.1
         
-        # 3. Calculate Total Resistance (R_Total) from the Solver's Power
-        # Power (kW) = Resistance (kN) * Speed (m/s) / Efficiency
-        # Therefore: Resistance (kN) = Power (kW) * Efficiency / Speed (m/s)
-        # We use P (Brake Power) and the Propulsive Efficiency (Q)
-        
+        # 3. Calculate Total Resistance (R_Total) from the Solver's Power        
         eff_propulsive = self.Q if self.Q > 0 else 0.65
         
-        # Note: self.P is "Service Power" at the propeller (delivered). 
-        # R_Total = (P_delivered * efficiency) / V ?? 
-        # Standard: P_effective = R_total * V.  P_delivered = P_effective / QPC.
-        # So: R_total = (P_delivered * QPC) / V
-        # self.P in code is Brake Power? Let's check _power():
-        # self.P = R8 * V^3... -> This P seems to be Effective Power (EHP) or similar? 
-        # Actually in _power(): P = R8 * V^3 ... and P1 = P / Q ... 
-        # So 'self.P' is likely Effective Power (PE) in HP or kW. 
-        # Let's assume self.P is Effective Power in HP (based on div by 427.1 in _power).
-        # Conversion: 1 HP = 0.7457 kW.
-        
+        # Note: self.P is "Service Power" at the propeller (delivered).         
         pe_kw = self.P * 0.7457 # Effective Power in kW
         
         # Total Resistance (kN) = PE (kW) / V (m/s)
         self.res_total = pe_kw / V_ms 
         
         # 4. Calculate Frictional Resistance (R_F)
-        # Wetted Surface (Mumford Formula)
         # S = 1.025 * Lpp * (Cb * B + 1.7 * T)
         cb_safe = self.C if self.C > 0 else 0.8
         self.area_wetted = 1.025 * self.L1 * (cb_safe * self.B + 1.7 * self.T)
@@ -2701,7 +2652,6 @@ class ShipDesViewWidget(QWidget):
         Re = (V_ms * self.L1) / viscosity
         
         # Friction Coefficient (ITTC-57)
-        # Cf = 0.075 / (log10(Re) - 2)^2
         if Re > 0:
             import math
             log_re = math.log10(Re)
@@ -2714,9 +2664,6 @@ class ShipDesViewWidget(QWidget):
         self.res_friction = rf_newtons / 1000.0
         
         # 5. Calculate Air Resistance (R_Air)
-        # Estimate Frontal Area
-        # Superstructure is roughly B * (Depth - T + Superstructure_Height)
-        # We assume Superstructure adds ~10m height avg
         frontal_area = self.B * ((self.D - self.T) + 10.0)
         cd_air = 0.8 # Typical ship drag coef
         
@@ -2724,7 +2671,6 @@ class ShipDesViewWidget(QWidget):
         self.res_air = r_air_newtons / 1000.0
         
         # 6. Appendage Resistance (Approximation)
-        # Usually 3-5% of total
         self.res_app = self.res_total * 0.04 
         
         # 7. Wave/Residual Resistance (The Remainder)
@@ -2750,7 +2696,6 @@ class ShipDesViewWidget(QWidget):
                 eff_pct = 5.0
             
             # 1. Estimate Flat Bottom Area
-            # Approx: L * B * Cb
             area_bottom = self.L1 * self.B * cb_safe
             
             # 2. Ratio of Bottom Friction
@@ -2760,11 +2705,9 @@ class ShipDesViewWidget(QWidget):
             r_f_bottom = self.res_friction * ratio_bottom
             
             # 3. Apply Savings
-            # Saving Force = Bottom_Friction * Efficiency
             drag_reduction_kn = r_f_bottom * (eff_pct / 100.0)
             
             # 4. Convert to Power Savings
-            # Power = Force * V
             power_saved = drag_reduction_kn * V_ms
             
             self.p_savings_kw += power_saved
@@ -3417,91 +3360,79 @@ class ShipDesViewWidget(QWidget):
 
     def _auxiliary(self):
         """
-        Calculates Auxiliary (Hotel + Cargo) Loads.
-        Updates self.P_aux (kW) and self.M_aux_mach (tonnes).
+        Calculates Auxiliary Power, Mass, and Cost.
+        Handles Nuclear integration (sizing P2 instead of adding Gensets).
         """
-        # Default values (Legacy mode)
+        # 1. Reset Defaults (Initialize ALL attributes used in output)
         self.P_aux_total = 0.0
+        self.M_aux_mach = 0.0      # Diesel Gen Mass
+        self.M_aux_outfit = 0.0    # Insulation
+        self.W_aux_fuel = 0.0      # Diesel Fuel Wt
+        self.aux_cost_annual = 0.0 # Diesel Cost
+        
+        # --- FIX: Initialize display variables to prevent AttributeError ---
         self.P_hotel = 0.0
         self.P_cargo_cooling = 0.0
-        self.M_aux_mach = 0.0      # Generator mass
-        self.M_aux_outfit = 0.0    # Insulation mass
-        self.W_aux_fuel = 0.0      # Fuel for aux engines
-        self.aux_cost_annual = 0.0 # Fuel cost
+        self.aux_fuel_annual_tonnes = 0.0
+        # -----------------------------------------------------------------
         
         if not self.check_aux_enable.isChecked():
             return
-            
+
         try:
-            # 1. Base Hotel Load
+            # --- 2. Calculate POWER Requirement ---
+            # Hotel Load
+            # --- FIX: Store as self.P_hotel for output ---
             self.P_hotel = float(self.edit_aux_base.text())
             
-            # 2. Cargo Cooling Load
+            # Cargo/Reefer Load
+            p_cargo = 0.0
             mode = self.combo_aux_mode.currentIndex()
             pct = float(self.edit_aux_p1.text()) / 100.0
             load_factor = float(self.edit_aux_p2.text())
             
-            if mode == 1: # Reefer Plugs (Container)
-                # Logic: Total TEU * % * kW/TEU
-                # We need Total TEU. In Cargo mode, estimating TEU is tricky.
-                if self.design_mode == 2: # TEU Mode
-                    teu_count = self.m_TEU
-                else:
-                    # Estimate TEU from DWT or Volume
-                    # Rough approx: 1 TEU ~ 14t Cargo + Box weight
-                    teu_count = self.W1 / 14.0 
+            if mode == 1: # Reefer Plugs
+                # If in TEU mode use TEU, else estimate from Target Weight
+                base_units = self.m_TEU if (self.design_mode == 2) else (self.W / 14.0)
+                p_cargo = base_units * pct * load_factor
+            elif mode == 2: # Insulated Hold
+                # Estimate volume from Target Weight (approximate)
+                vol_est = self.W * 1.5 # approx stowage factor
+                p_cargo = (vol_est / 1000.0) * load_factor
+                self.M_aux_outfit = vol_est * 0.02 # Insulation weight
+            
+            # --- FIX: Store as self.P_cargo_cooling for output ---
+            self.P_cargo_cooling = p_cargo
                 
-                num_reefers = teu_count * pct
-                self.P_cargo_cooling = num_reefers * load_factor
-                
-            elif mode == 2: # Insulated Hold (Bulk/General)
-                # Logic: Volume * % * kW/1000m3
-                vol_hull = self.L1 * self.B * self.D * self.C
-                vol_cooled = vol_hull * pct
-                self.P_cargo_cooling = (vol_cooled / 1000.0) * load_factor
-                
-                # Insulation Weight Penalty
-                # Approx: 20kg per m3 of cooled volume (Insulation + Grating)
-                self.M_aux_outfit = vol_cooled * 0.020 
-
-            # 3. Total Aux Load
             self.P_aux_total = self.P_hotel + self.P_cargo_cooling
+
+            # --- 3. Handle NUCLEAR vs CONVENTIONAL ---
+            is_nuclear = (self.Ketype == 4) 
             
-            # 4. Mass Impact (Generators)
-            # Modern Gensets approx 10-15 kg/kW installed
-            # We assume installed capacity = 1.25 * Load (Safety margin)
-            installed_aux_kw = self.P_aux_total * 1.25
-            self.M_aux_mach = (installed_aux_kw * 12.0) / 1000.0 # Tonnes
-            
-            # 5. Fuel Consumption (Annual)
-            # Aux SFC ~ 220 g/kWh (Higher than main engine usually)
-            sfc_aux = 220.0 
-            
-            # Sea Usage
-            hours_sea = self.D1 * 24.0
-            energy_sea = self.P_aux_total * hours_sea # kWh
-            
-            # Port Usage
-            # Assume 365 - SeaDays = PortDays
-            # In port, Hotel load stays, Cargo load might decrease (plugged into shore?)
-            # Let's assume ship generates own power (common)
-            hours_port = (365.0 - self.D1) * 24.0
-            energy_port = self.P_aux_total * hours_port # kWh
-            
-            total_energy_kwh = energy_sea + energy_port
-            total_fuel_kg = total_energy_kwh * sfc_aux
-            
-            self.aux_fuel_annual_tonnes = total_fuel_kg / 1000.0
-            
-            # Cost ($/tonne of fuel from input)
-            self.aux_cost_annual = self.aux_fuel_annual_tonnes * self.F8
-            
-            # 6. Fuel Weight for Range (W3 impact)
-            # Voyage Hours = R / V
-            voyage_hours = self.R / (self.V if self.V > 0.1 else 0.1)
-            voyage_energy = self.P_aux_total * voyage_hours
-            self.W_aux_fuel = (voyage_energy * sfc_aux) / 1000.0
-            
+            if is_nuclear:
+                # NUCLEAR LOGIC:
+                self.P2 += self.P_aux_total
+                
+            else:
+                # CONVENTIONAL LOGIC:
+                # 1. Add Mass for Diesel Generators
+                self.M_aux_mach = (self.P_aux_total * 1.25 * 12.0) / 1000.0
+                
+                # 2. Add Mass for Diesel Fuel (Range dependent)
+                sfc_aux = 0.220 # kg/kWh
+                voyage_hours = self.R / (self.V if self.V > 0.1 else 0.1)
+                self.W_aux_fuel = (self.P_aux_total * voyage_hours * sfc_aux) / 1000.0
+                
+                # 3. Add Annual Cost
+                hours_year = 365.0 * 24.0
+                
+                # --- FIX: Store as self.aux_fuel_annual_tonnes for output ---
+                self.aux_fuel_annual_tonnes = (self.P_aux_total * hours_year * sfc_aux) / 1000.0
+                
+                # Use Fuel Price (handle if hidden/zero)
+                price = self.F8 if self.F8 > 1 else 600.0
+                self.aux_cost_annual = self.aux_fuel_annual_tonnes * price
+
         except Exception as e:
             self._show_error(f"Aux Calc Error: {e}")
 
