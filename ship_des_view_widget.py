@@ -2952,6 +2952,18 @@ class ShipDesViewWidget(QWidget):
         mm = self.maxit
         X0 = 20.0 * (self.C - 0.675)
         L1_safe = self.L1 if self.L1 > 0 else 1e-9
+        # --- NEW: Physics & Dimensionless Numbers ---
+        g = 9.81
+        v_ms = self.V * 0.5144  # knots to m/s
+        viscosity = 1.188e-6    # Seawater kinematic viscosity
+        
+        self.froude_number = v_ms / math.sqrt(g * L1_safe)
+        self.reynolds_number = (v_ms * L1_safe) / viscosity
+        
+        # --- NEW: LCB Estimation (Schneekluth) ---
+        # Optimal LCB as % Lbp from amidships (+ is forward, - is aft)
+        self.lcb_optimal = 8.8 * (self.froude_number - 0.18)
+        
         V0 = self.V / math.sqrt(3.28 * L1_safe)
         W0 = (self.L1 * self.B * self.T * self.C) ** (1/3)
         if W0 == 0: W0 = 1e-9
@@ -3069,6 +3081,35 @@ class ShipDesViewWidget(QWidget):
         self.P2 = self.P1 * (1.0 + 0.01 * F6)
         
         return True
+
+    def _calculate_detailed_efficiency(self):
+        """
+        Calculates diagnostic efficiency components based on current ship state.
+        Does not feed back into P1/P2 to avoid changing original results.
+        """
+        try:
+            # 1. Hull Efficiency (eta_H)
+            # Wake fraction (w) and Thrust deduction (t) estimates
+            if self.Kstype == 1: # Tanker
+                w = 0.5 * self.C - 0.05
+            else: # Bulk/Cargo
+                w = 0.5 * self.C - 0.12
+            
+            t = 0.8 * w # Standard approximation
+            self.diag_eta_h = (1.0 - t) / (1.0 - w) if (1.0 - w) != 0 else 1.0
+            
+            # 2. Open Water Efficiency (eta_O)
+            # Extracted from the total Q (QPC) provided by the original solver
+            # QPC = eta_H * eta_O * eta_R. Assuming eta_R = 1.0 for diagnostics.
+            eta_r = 1.0
+            if self.diag_eta_h > 0:
+                self.diag_eta_o = self.Q / (self.diag_eta_h * eta_r)
+            else:
+                self.diag_eta_o = 0.0
+
+        except Exception:
+            self.diag_eta_h = 0.0
+            self.diag_eta_o = 0.0
 
     def _resist(self, base_idx, W0, X0):
         """Port of Sub_resist helper function"""
@@ -3687,6 +3728,25 @@ class ShipDesViewWidget(QWidget):
                     new_kw = self.P1 * 0.7457
                     output_lines.append(f"     -> New Service Power: {int(new_kw)} kW (was {int(orig_kw)})")
             # ----------------------------------------
+
+            # Call the diagnostic calculator before printing
+        self._calculate_detailed_efficiency()
+
+        if opt['ope'] or opt['oqpc']: # Trigger if power options are selected
+            output_lines.append("\r\n  ------- Physics & Hydrodynamics:")
+            output_lines.append(f"   Froude Number (Fn) = {self.froude_number:.3f}")
+            output_lines.append(f"   Reynolds Number (Re)= {self.reynolds_number:.2e}")
+            
+            # Warn if Fn is outside regression reliability
+            if self.froude_number > 0.30:
+                output_lines.append("   !! WARNING: Fn > 0.30. Resistance data may be unstable.")
+                
+            output_lines.append(f"   Estimated Opt. LCB = {self.lcb_optimal:+.2f}% Lbp")
+            
+            output_lines.append("  ------- Efficiency Breakdown (Diagnostic):")
+            output_lines.append(f"   Hull Efficiency (nH) = {self.diag_eta_h:.3f}")
+            output_lines.append(f"   Open Water Eff. (nO) = {self.diag_eta_o:.3f}")
+            output_lines.append(f"   Total QPC (Original) = {self.Q:.3f}")
 
             # --- NEW: Auxiliary Analysis Output ---
             if self.check_aux_enable.isChecked():
