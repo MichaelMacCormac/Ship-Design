@@ -899,7 +899,10 @@ class ShipDesViewWidget(QWidget):
         aux_layout.addWidget(self.edit_aux_base, 1, 1)
         
         # 3. Refrigeration Mode
-        aux_layout.addWidget(QLabel("Cargo Cooling:"), 2, 0)
+        # --- MODIFICATION: Store label to allow hiding it later ---
+        self.label_aux_mode_title = QLabel("Cargo Cooling:") 
+        aux_layout.addWidget(self.label_aux_mode_title, 2, 0)
+        # --------------------------------------------------------
         self.combo_aux_mode = QComboBox()
         self.combo_aux_mode.addItems(["None", "Reefer Plugs (Container)", "Insulated Hold (Bulk)"])
         self.combo_aux_mode.currentIndexChanged.connect(self._reset_dlg)
@@ -2607,7 +2610,35 @@ class ShipDesViewWidget(QWidget):
         if hasattr(self, 'aux_cost_annual'):
             self.H7 += self.aux_cost_annual
         
+        # --- NEW: Calculate Refrigerated Premium Income ---
+        self.annual_premium_income = 0.0 # Store for display later
+        try:
+            # Only apply if Aux analysis is enabled
+            if self.check_aux_enable.isChecked():
+                prem_rate = float(self.edit_aux_prem.text())
+                
+                # Only proceed if there is a positive premium entered
+                if prem_rate > 0:
+                    # Determine units (TEU vs Tonnes)
+                    is_teu = (self.design_mode == 2)
+                    total_cargo_units = self.m_TEU if is_teu else self.W1
+                    
+                    # Determine what % of cargo gets the premium
+                    # (Reefer Plugs % or Cooled Vol %)
+                    pct_refrigerated = float(self.edit_aux_p1.text()) / 100.0
+                    
+                    # Calculate Income: Units * %Reefer * PremiumRate * Voyages
+                    # Note: Premium is usually per voyage. 
+                    # If the input is "Per Unit Per Voyage":
+                    income_per_voyage = (total_cargo_units * pct_refrigerated) * prem_rate
+                    self.annual_premium_income = income_per_voyage * self.V7
+        except ValueError:
+            self.annual_premium_income = 0.0
+
         Rt = self.H1 + self.m_H2_Crew + H3 + self.m_H4_Port + self.m_H5_Stores + self.m_H6_Overhead + self.H7 + self.m_H8_Other
+        
+        # --- NEW: Subtract Premium from Total Cost (Subsidize the RFR) ---
+        Rt_adjusted = Rt - self.annual_premium_income
         
         self.S *= 1.0e-6 # Convert total build cost to M$ for output
         
@@ -2615,7 +2646,9 @@ class ShipDesViewWidget(QWidget):
         W7 = self.V7 * W1_safe
         
         if W7 == 0: W7 = 1e-9 # Avoid division by zero
-        self.Rf = Rt / W7
+        
+        # We calculate Rf based on the Adjusted cost (Net Cost)
+        self.Rf = Rt_adjusted / W7
         
         return True
 
@@ -3189,59 +3222,78 @@ class ShipDesViewWidget(QWidget):
         # 1. Get Current Ship Data
         ship_name = self.combo_ship.currentText()
         ship_data = ShipConfig.get(ship_name)
+        ship_id = ship_data.get("ID", 0)
+
+        # --- LOGIC: Which ships support Cooling? ---
+        # 4=Container, 2=Bulk, 3=Cargo
+        supports_cooling = (ship_id in [2, 3, 4])
         
-        # 2. Check if this is a Container Ship (ID 4)
-        # We look up the ID directly to be safe
-        is_container_ship = (ship_data.get("ID", 0) == 4)
-        
-        # --- FIX: Force Enable/Disable of TEU Radio ---
+        # Define what options are allowed for this ship type
+        wanted_items = ["None"]
+        if ship_id == 4: # Container Ship
+            wanted_items.append("Reefer Plugs (Container)")
+        elif ship_id in [2, 3]: # Bulk Carrier (2) or Cargo Vessel (3)
+            wanted_items.append("Insulated Hold (Bulk)")
+
+        # Update Dropdown Items (only if changed, to prevent loops)
+        current_items = [self.combo_aux_mode.itemText(i) for i in range(self.combo_aux_mode.count())]
+        if current_items != wanted_items:
+            self.combo_aux_mode.blockSignals(True)
+            self.combo_aux_mode.clear()
+            self.combo_aux_mode.addItems(wanted_items)
+            self.combo_aux_mode.setCurrentIndex(0) # Default to None
+            self.combo_aux_mode.blockSignals(False)
+
+        # 2. Check if this is a Container Ship (ID 4) for TEU Radio
+        is_container_ship = (ship_id == 4)
         self.radio_teu.setEnabled(is_container_ship)
         
-        # If user switches TO Container Ship, auto-select TEU mode
         if is_container_ship:
              if not self.radio_teu.isChecked() and not self.radio_cargo.isChecked():
                  self.radio_teu.setChecked(True)
-        # If switching AWAY, force back to Cargo mode
         elif self.radio_teu.isChecked():
              self.radio_cargo.setChecked(True)
 
-        # ... (Auxiliary Logic Block) ...
-        # 1. check if enabled
+        # --- VISIBILITY LOGIC ---
         is_aux_on = self.check_aux_enable.isChecked()
         
-        self.label_aux_base.setEnabled(is_aux_on)
-        self.edit_aux_base.setEnabled(is_aux_on)
-        self.combo_aux_mode.setEnabled(is_aux_on)
+        # A. Base Hotel Load: Visible if Aux is ON (regardless of ship type)
+        self.label_aux_base.setVisible(is_aux_on)
+        self.edit_aux_base.setVisible(is_aux_on)
         
-        # 2. Handle Refrigeration Inputs
-        aux_mode = self.combo_aux_mode.currentIndex() # 0=None, 1=Reefer, 2=Hold
+        # B. Cooling Dropdown: Visible if Aux is ON -AND- Ship Supports it
+        show_cooling_selector = is_aux_on and supports_cooling
         
-        show_ref_inputs = is_aux_on and (aux_mode > 0)
-        self.label_aux_p1.setEnabled(show_ref_inputs)
-        self.edit_aux_p1.setEnabled(show_ref_inputs)
-        self.label_aux_p2.setEnabled(show_ref_inputs)
-        self.edit_aux_p2.setEnabled(show_ref_inputs)
-        self.label_aux_prem.setEnabled(show_ref_inputs)
-        self.edit_aux_prem.setEnabled(show_ref_inputs)
+        self.label_aux_mode_title.setVisible(show_cooling_selector)
+        self.combo_aux_mode.setVisible(show_cooling_selector)
         
-        # 3. Dynamic Labels based on Mode
-        if aux_mode == 1: # Reefer (Container)
+        # C. Cooling Inputs (p1, p2, prem): Visible if Selector is Visible -AND- Mode is not None
+        current_mode_text = self.combo_aux_mode.currentText()
+        show_ref_inputs = show_cooling_selector and ("None" not in current_mode_text)
+        
+        self.label_aux_p1.setVisible(show_ref_inputs)
+        self.edit_aux_p1.setVisible(show_ref_inputs)
+        self.label_aux_p2.setVisible(show_ref_inputs)
+        self.edit_aux_p2.setVisible(show_ref_inputs)
+        self.label_aux_prem.setVisible(show_ref_inputs)
+        self.edit_aux_prem.setVisible(show_ref_inputs)
+        
+        # Dynamic Labels based on Text
+        if "Reefer" in current_mode_text: # Container Mode
             self.label_aux_p1.setText("Reefer Plugs (%TEU):")
             self.label_aux_p2.setText("Load (kW/TEU):")
             self.edit_aux_p2.setToolTip("Avg draw per reefer (typ. 2.5-4.0 kW)")
-        elif aux_mode == 2: # Insulated Hold
+        elif "Hold" in current_mode_text: # Bulk Mode
             self.label_aux_p1.setText("Cooled Vol (%):")
-            self.label_aux_p2.setText("Cooling (kW/1000m3):") # Note unit change
+            self.label_aux_p2.setText("Cooling (kW/1000m3):")
             self.edit_aux_p2.setToolTip("Typ. 10-20 kW per 1000m3")
-        else:
-            self.label_aux_p1.setText("Reefer Capacity (%):") # Default
+        else: # Default/None
+            self.label_aux_p1.setText("Reefer Capacity (%):") 
             self.label_aux_p2.setText("Load (kW/unit):")
-            
-        # 4. Intelligent Default for Base Load
-        # If user hasn't touched it (logic could be improved), hint based on ship type
-        # For now, we just leave it editable.
 
-        # 3. Determine Modes
+        # ... (Rest of function logic: Cargo/Ship Mode, ESD, etc.) ...
+        # [Copy the rest of the original _reset_dlg logic here starting from "3. Determine Modes"]
+        
         is_cargo_mode = self.radio_cargo.isChecked()
         is_ship_mode = self.radio_ship.isChecked()
         is_teu_mode = self.radio_teu.isChecked()
@@ -3249,41 +3301,30 @@ class ShipDesViewWidget(QWidget):
         is_econom_on = self.check_econom.isChecked()
         is_nuclear = (self.combo_engine.currentIndex() == 3) 
 
-        # --- NEW: ESD Logic ---
         self.edit_als_eff.setEnabled(self.check_als.isChecked())
-        self.edit_als_eff.setEnabled(self.check_als.isChecked())
-        
         self.edit_wind_sav.setEnabled(self.check_wind.isChecked())
         self.label_wind_sav.setEnabled(self.check_wind.isChecked())
 
-        # --- FIX: Toggle Visibility of TEU Inputs ---
-        # If you implemented the 'layout_teu_container' from the previous fix, use it:
+        # Toggle Visibility of TEU Inputs
         if hasattr(self, 'layout_teu_container'):
             self.layout_teu_container.setVisible(is_teu_mode)
         else:
-            # Fallback if you didn't change __init__: hide widgets manually
             self.edit_teu.setVisible(is_teu_mode)
             self.edit_teu_weight.setVisible(is_teu_mode)
         
-        # Toggle Standard Cargo Inputs (Hide Weight/Error in TEU mode to avoid confusion)
         self.edit_weight.setEnabled(is_cargo_mode)
         self.edit_error.setEnabled(is_cargo_mode)
 
-        # 4. Volume Limit / Density Logic
-        # Show density input ONLY if:
-        # A) Volume Limit is Checked
-        # B) Ship is a "Deadweight" type (Bulk, Tanker, Cargo) - not Cruise/Container
+        # Volume Limit / Density Logic
         show_density = (self.check_vol_limit.isChecked() and 
                         ship_data.get("Design_Type") == "Deadweight")
         
         self.label_density.setVisible(show_density)
         self.edit_density.setVisible(show_density)
         
-        # Auto-fill default density if the box appears empty
         if show_density and (not self.edit_density.text() or self.edit_density.text() == "0.0"):
              self.edit_density.setText(str(ship_data.get("Cargo_Density", 0.0)))
 
-        is_econom_on = self.check_econom.isChecked()
         eedi_allowed = ship_data.get("EEDI_Enabled", False)
         
         if is_econom_on and eedi_allowed:
@@ -3293,18 +3334,16 @@ class ShipDesViewWidget(QWidget):
             self.check_cii.setEnabled(True)
         else:
             self.check_eedi.setVisible(False)
-            self.check_eedi.setChecked(False) # Force uncheck if hidden
+            self.check_eedi.setChecked(False) 
             self.check_cii.setVisible(False)
             self.check_cii.setChecked(False)
 
-        # 5. Standard Field Enabling
         self.edit_length.setEnabled(is_ship_mode)
         self.edit_breadth.setEnabled(is_ship_mode)
         self.edit_depth.setEnabled(is_ship_mode)
         self.edit_draught.setEnabled(is_ship_mode)
         self.edit_block.setEnabled(is_ship_mode)
         
-        # 6. Constraints
         self.check_lbratio.setEnabled(is_design_mode)
         self.check_bvalue.setEnabled(is_design_mode)
         self.check_btratio.setEnabled(is_design_mode)
@@ -3317,7 +3356,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_cbvalue.setEnabled(is_design_mode and self.check_cbvalue.isChecked())
         self.edit_pdtratio.setEnabled(self.check_pdtratio.isChecked())
         
-        # 7. Economic & Nuclear
         self.edit_voyages.setEnabled(is_econom_on)
         self.edit_seadays.setEnabled(is_econom_on)
         self.edit_interest.setEnabled(is_econom_on)
@@ -3328,7 +3366,6 @@ class ShipDesViewWidget(QWidget):
         self.label_lhv.setVisible(is_econom_on and not is_nuclear)
         self.edit_lhv.setVisible(is_econom_on and not is_nuclear)
         
-        # Carbon Tax Visibility
         show_tax = is_econom_on and not is_nuclear
         self.check_carbon_tax.setVisible(show_tax)
         self.label_ctax_rate.setVisible(show_tax and self.check_carbon_tax.isChecked())
@@ -3341,13 +3378,11 @@ class ShipDesViewWidget(QWidget):
         self.label_decom_cost.setVisible(is_econom_on and is_nuclear)
         self.edit_decom_cost.setVisible(is_econom_on and is_nuclear)
         
-        # Range Logic
         if is_nuclear:
             self.edit_range.setText("Infinite")
             self.edit_range.setEnabled(False)
         else:
             self.edit_range.setEnabled(True)
-            # FIX: Auto-fill if box is "Infinite" OR currently empty
             current_text = self.edit_range.text().strip()
             if current_text == "Infinite" or not current_text:
                 self.edit_range.setText(f"{self.m_conventional_Range:.6g}")
@@ -3387,6 +3422,25 @@ class ShipDesViewWidget(QWidget):
             
             # Cargo/Reefer Load
             p_cargo = 0.0
+            # --- NEW: Use Text Matching instead of Index ---
+            mode_text = self.combo_aux_mode.currentText()
+            
+            pct = float(self.edit_aux_p1.text()) / 100.0
+            load_factor = float(self.edit_aux_p2.text())
+            
+            if "Reefer" in mode_text: # Reefer Plugs (Container)
+                # If in TEU mode use TEU, else estimate from Target Weight
+                base_units = self.m_TEU if (self.design_mode == 2) else (self.W / 14.0)
+                p_cargo = base_units * pct * load_factor
+                
+            elif "Hold" in mode_text: # Insulated Hold (Bulk)
+                # Estimate volume from Target Weight (approximate)
+                vol_est = self.W * 1.5 # approx stowage factor
+                p_cargo = (vol_est / 1000.0) * load_factor
+                self.M_aux_outfit = vol_est * 0.02 # Insulation weight
+            
+            # (If mode is "None", p_cargo stays 0.0)
+            # -----------------------------------------------
             mode = self.combo_aux_mode.currentIndex()
             pct = float(self.edit_aux_p1.text()) / 100.0
             load_factor = float(self.edit_aux_p2.text())
@@ -3807,10 +3861,34 @@ class ShipDesViewWidget(QWidget):
                          output_lines.append(f"   (Includes Carbon Tax @ {self.m_CarbonTax} $/tCO2)")
                 
                 if opt['orfr']:
-                    if self.design_mode == 2: # TEU
-                        output_lines.append(f"   Required rate = {self.Rf * self.m_TEU_Avg_Weight:5.2f} ($/TEU)")
-                    else: # Cargo
-                        output_lines.append(f"   Required freight rate = {self.Rf:5.2f} ($/tonne)")
+                    # Determine Unit Label and Conversion Factor
+                    if self.design_mode == 2: # TEU Mode
+                        unit_label = "$/TEU"
+                        conv_factor = self.m_TEU_Avg_Weight # Convert $/tonne to $/TEU
+                    else: # Deadweight Mode
+                        unit_label = "$/tonne"
+                        conv_factor = 1.0
+
+                    base_rfr = self.Rf * conv_factor
+                    
+                    # Check if we have a premium to display
+                    if hasattr(self, 'annual_premium_income') and self.annual_premium_income > 0:
+                        # Reconstruct the "Gross" RFR (without premium) for comparison
+                        # Rf = (Rt - Premium) / Cargo
+                        # So, Premium_Impact = Premium / Cargo
+                        
+                        W7 = self.V7 * self.W1
+                        if W7 > 0:
+                            premium_savings_per_tonne = self.annual_premium_income / W7
+                            savings_display = premium_savings_per_tonne * conv_factor
+                            
+                            gross_rfr = base_rfr + savings_display
+                            
+                            output_lines.append(f"   Req. Freight Rate = {base_rfr:5.2f} {unit_label}")
+                            output_lines.append(f"       (Base: {gross_rfr:5.2f} - Premium: {savings_display:5.2f})")
+                    else:
+                        # Standard Output if no premium
+                        output_lines.append(f"   Req. Freight Rate = {base_rfr:5.2f} {unit_label}")
 
                 # --- NEW: CII Calculation ---
                 if self.check_cii.isChecked():
