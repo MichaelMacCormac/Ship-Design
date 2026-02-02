@@ -1,7 +1,3 @@
-# ship_des_view_widget.py
-# Port of CShipDesView (the main form)
-# MODIFIED to include TEU, Nuclear Propulsion (v2, $/kW), and Plotting
-
 import sys
 import math
 import csv
@@ -13,34 +9,19 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
     QInputDialog
 )
-# ...
+
 from PySide6.QtCore import Qt
 
-# --- NEW: Imports for Matplotlib Graphing ---
-# ... existing imports ...
 try:
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.figure import Figure
-    # --- NEW: Import 3D plotting toolkit ---
     from mpl_toolkits.mplot3d import Axes3D 
 except ImportError:
     print("Matplotlib not found. Plotting will be disabled.")
     print("Please install it: pip install matplotlib")
     FigureCanvas = None
     Figure = None
-    # ... existing error handling ...
-# --- END: Imports for Matplotlib Graphing ---
 
-
-# --- MODIFICATION: Dialog imports are moved inside __init__ to fix circular dependency ---
-#
-# from dialog_modify import ModifyDialog
-# from dialog_outopt import OutoptDialog
-# from dialog_readme import ReadmeDialog
-#
-# --- END MODIFICATION ---
-
-# --- NEW: Physics & Fuel Constants ---
 class FuelConfig:
     """
     Central database for fuel properties.
@@ -50,7 +31,6 @@ class FuelConfig:
       - MAN Energy Solutions (Ammonia/H2 Engine masses)
       - Corvus Energy (Battery densities)
     """
-    # Keys must match combo_engine items
     DATA = {
         "Direct diesel": {
             "LHV": 42.7,       # Standard Marine Diesel Oil
@@ -159,7 +139,6 @@ class FuelConfig:
     def get(name):
         return FuelConfig.DATA.get(name, FuelConfig.DATA["Direct diesel"])
 
-# --- UPDATED: Ship Type & Hull Constants (With EEDI Data) ---
 class ShipConfig:
     DATA = {
         "Tanker": {
@@ -170,9 +149,7 @@ class ShipConfig:
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.10,
             "Cargo_Density": 0.85,
-            # EEDI
             "EEDI_a": 1218.80, "EEDI_c": 0.488, "EEDI_Enabled": True, "EEDI_Type": "DWT",
-            # CII (Reference: a * Capacity^-c)
             "CII_a": 5247.0, "CII_c": 0.610, "CII_Type": "DWT" 
         },
         "Bulk carrier": {
@@ -228,7 +205,6 @@ class ShipConfig:
             "Profile_Factor": 2.20,
             "Cargo_Density": 0.0,
             "EEDI_a": 170.84, "EEDI_c": 0.214, "EEDI_Enabled": True, "EEDI_Type": "GT",
-            # No specific IMO CII curve for private yachts, use Cruise curve as proxy
             "CII_a": 930.0, "CII_c": 0.383, "CII_Type": "GT"
         }
     }
@@ -237,8 +213,6 @@ class ShipConfig:
     def get(name):
         return ShipConfig.DATA.get(name, ShipConfig.DATA["Tanker"])
 
-# --- NEW: GraphWindow Class ---
-# This class creates a new window to display the matplotlib plot
 class GraphWindow(QWidget):
     """
     Displays either a 2D line graph or a 3D wireframe plot.
@@ -252,17 +226,13 @@ class GraphWindow(QWidget):
         fig = Figure(figsize=(8, 6), dpi=100)
         canvas = FigureCanvas(fig)
         
-        # Check if this is 3D data (z_data is present)
         if z_data is not None:
             ax = fig.add_subplot(111, projection='3d')
-            # Plot Wireframe
-            # x_data and y_data must be meshgrids here
             ax.plot_wireframe(x_data, y_data, z_data, color='blue', linewidth=0.5)
             ax.set_xlabel(x_label)
             ax.set_ylabel(y_label)
             ax.set_zlabel(z_label)
         else:
-            # Standard 2D Plot
             ax = fig.add_subplot(111)
             if x_data is not None and y_data is not None:
                 ax.plot(x_data, y_data, marker='o', linestyle='-')
@@ -270,8 +240,6 @@ class GraphWindow(QWidget):
             ax.set_ylabel(y_label)
             
         ax.set_title(title)
-        # 3D plots don't use standard grid() calls the same way, 
-        # but it's default on in 3d. For 2D:
         if z_data is None: ax.grid(True)
         
         layout.addWidget(canvas)
@@ -288,7 +256,6 @@ class RouteDialog(QDialog):
         
         layout = QVBoxLayout(self)
         
-        # --- Top: Presets & Inputs ---
         top_layout = QHBoxLayout()
         
         self.combo_preset = QComboBox()
@@ -296,13 +263,11 @@ class RouteDialog(QDialog):
         top_layout.addWidget(QLabel("Route Preset:"))
         top_layout.addWidget(self.combo_preset)
         
-        # Operational Availability
         top_layout.addWidget(QLabel("Days in Service/Year:"))
         self.edit_days_year = QLineEdit("355") # Allow 10 days maintenance
         self.edit_days_year.setFixedWidth(50)
         top_layout.addWidget(self.edit_days_year)
         
-        # Port Time
         top_layout.addWidget(QLabel("Port Days/Voyage:"))
         self.edit_port_days = QLineEdit("3.0")
         self.edit_port_days.setFixedWidth(50)
@@ -310,7 +275,6 @@ class RouteDialog(QDialog):
         
         layout.addLayout(top_layout)
         
-        # --- Middle: Segment Table ---
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Segment Name", "Distance (nm)", "Speed Profile (%)"])
@@ -318,7 +282,6 @@ class RouteDialog(QDialog):
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         layout.addWidget(self.table)
         
-        # Buttons for table
         btn_box = QHBoxLayout()
         btn_add = QPushButton("Add Segment")
         btn_del = QPushButton("Remove Segment")
@@ -329,7 +292,6 @@ class RouteDialog(QDialog):
         btn_box.addStretch()
         layout.addLayout(btn_box)
         
-        # --- Bottom: Results Preview ---
         result_group = QGroupBox("Projected Annual Performance")
         res_layout = QGridLayout()
         
@@ -346,7 +308,6 @@ class RouteDialog(QDialog):
         result_group.setLayout(res_layout)
         layout.addWidget(result_group)
         
-        # Dialog Buttons
         dlg_btns = QHBoxLayout()
         self.btn_apply = QPushButton("Apply to Analysis")
         self.btn_cancel = QPushButton("Cancel")
@@ -358,13 +319,11 @@ class RouteDialog(QDialog):
         dlg_btns.addWidget(self.btn_cancel)
         layout.addLayout(dlg_btns)
         
-        # --- Logic Connections ---
         self.combo_preset.currentIndexChanged.connect(self.load_preset)
         self.table.itemChanged.connect(self.recalc_stats)
         self.edit_days_year.editingFinished.connect(self.recalc_stats)
         self.edit_port_days.editingFinished.connect(self.recalc_stats)
         
-        # Init
         self.load_preset() # Load default
 
     def add_row(self, name="New Segment", dist="1000", speed="100"):
@@ -387,7 +346,6 @@ class RouteDialog(QDialog):
         self.table.setRowCount(0) # Clear
         
         if preset == "Asia-Europe (Suez)":
-            # Typical loop: Shanghai -> Singapore -> Suez -> Rotterdam
             self.add_row("Open Ocean (East)", "8000", "100")
             self.add_row("Canal Transit (Slow)", "100", "10") # 10% speed in canal
             self.add_row("Mediterranean/Coastal", "3000", "85") # Slower in busy waters
@@ -431,17 +389,13 @@ class RouteDialog(QDialog):
                 total_dist += d
                 total_time_hours += segment_time
                 
-                # Cubic Law: Power % = (Speed %)^3
-                # Energy used = Power * Time
                 power_factor = spd_pct ** 3
                 weighted_power_sum += (power_factor * segment_time)
 
             if total_time_hours == 0: return
 
-            # 1. Average Power Factor (Energy consumed / Time at sea)
             self.avg_power_factor = weighted_power_sum / total_time_hours
             
-            # 2. Voyage Logic
             port_days = float(self.edit_port_days.text())
             avail_days = float(self.edit_days_year.text())
             
@@ -453,13 +407,11 @@ class RouteDialog(QDialog):
             
             total_sea_days_year = voyages * sea_days_per_voyage
             
-            # Update UI
             self.lbl_total_dist.setText(f"{total_dist:,.0f} nm")
             self.lbl_avg_power.setText(f"{self.avg_power_factor:.3f}")
             self.lbl_voyages.setText(f"{voyages:.2f}")
             self.lbl_seadays.setText(f"{total_sea_days_year:.1f}")
             
-            # Save data for extraction
             self.result_data = {
                 'voyages': voyages,
                 'seadays': total_sea_days_year,
@@ -478,17 +430,12 @@ class ShipDesViewWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # --- Port C++ Error Constants ---
-        #
         self.NOT_CONVERGE = 2
         self.SPEED_LOW = 3 #
         self.SPEED_HIGH = 5 #
         self.PITCH_LOW = 7 #
         self.PITCH_HIGH = 11 #
 
-        # --- Port C++ Member Variables ---
-        #
-        # Default values from the constructor
         self.m_Econom = True #
         self.m_VolumeLimit = True
         self.m_CustomDensity = -1.0
@@ -503,11 +450,7 @@ class ShipDesViewWidget(QWidget):
         self.m_Length = 207.34301 #
         self.m_Prpm = 120.0 #
         self.m_Range = 12000.0 #
-        
-        # --- THIS IS THE MISSING LINE ---
-        self.m_Repay = 15.0 #
-        # ----------------------------------
-        
+        self.m_Repay = 15.0 #        
         self.m_Results = "Press the Calculate button\r\nto find ship dimensions ..." #
         self.m_Seadays = 340.0 #
         self.m_Speed = 15.0 #
@@ -526,30 +469,16 @@ class ShipDesViewWidget(QWidget):
         self.m_PdtratioV = 0.6 #
         self.m_Pdtratio = True #
         self.m_Append = False #
-
-        # --- NEW: TEU and Nuclear default variables ---
         self.m_TEU = 3000.0
         self.m_TEU_Avg_Weight = 14.0
-        
-        # --- MODIFIED: Nuclear cost is now per/kW ---
         self.m_Reactor_Cost_per_kW = 9000.0 # ($/kW)
         self.m_Core_Life = 20.0             # (Years)
         self.m_Decom_Cost = 200.0           # (M$)
-        
-        # --- NEW: Carbon Tax Variables ---
         self.m_CarbonTax = 85.0 # Current EU ETS approx price ($/tonne CO2)
         self.m_CarbonIntensity = 3.114 # Tonnes CO2 per Tonne Diesel fuel
-
-        # --- NEW: Power Factor for Speed Profiles ---
         self.m_Power_Factor = 1.0 # Defaults to 100% (Flat profile)
-
-        # --- NEW: Storage for conventional range ---
         self.m_conventional_Range = self.m_Range # Store the default
-        
-        # --- NEW: Storage for plot window ---
         self.graph_window = None # Holds reference to graph window
-
-        # Internal calculation variables
         self.Kcases = 0 #
         self.Ketype = 1 #
         self.Kstype = 1 #
@@ -559,12 +488,6 @@ class ShipDesViewWidget(QWidget):
         self.Savefile = "SDout.txt" #
         self.design_mode = 0 # 0=Cargo, 1=Ship, 2=TEU
         self.target_teu = 0
-        
-        # ... (rest of __init__ is unchanged) ...
-
-        # ... (rest of __init__ is unchanged) ...
-
-        #
         self.Lb01=4.0; self.Lb02=0.025; self.Lb03=30.0; self.Lb04=6.5; self.Lb05=130.0
         self.Cb11=0.93; self.Cb12=0.110; self.Cb13=1.23; self.Cb14=0.395; self.Cb15=1.0 #
         self.Cb21=0.93; self.Cb22=0.110; self.Cb23=1.23; self.Cb24=0.395; self.Cb25=1.0 #
@@ -577,12 +500,9 @@ class ShipDesViewWidget(QWidget):
         self.maxit = 1000 #
         self.MdfEnable = [False] * 10 #;]
 
-        # --- MODIFICATION: Import moved here ---
         from dialog_outopt import OutoptDialog
-        # Output options (from COutopt)
         self.outopt_data = OutoptDialog().get_data() # Get defaults
 
-        # Calculation state variables
         self.L1 = 0.0; self.B = 0.0; self.D = 0.0; self.T = 0.0; self.C = 0.0
         self.R = 0.0; self.V = 0.0; self.N1 = 0.0; self.N2 = 0.0; self.V7 = 0.0
         self.D1 = 0.0; self.F8 = 0.0; self.I = 0.0; self.N = 0
@@ -593,9 +513,6 @@ class ShipDesViewWidget(QWidget):
         self.S = 0.0; self.F0 = 0.0; self.F5 = 0.0; self.F9 = 0.0
         self.G6 = 0.0; self.H1 = 0.0; self.H7 = 0.0; self.Kcount = 0
 
-        # --- Ported Static Data Arrays ---
-        
-        # From Sub_power
         self._V1 = (0.0, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8)
         self._A6 = (0.0, 0.2461132, -0.4579327, -0.1716513, 0.4350189,
                     3.681142e-02, -5.782276e-02, -3.677581e-02, 8.540912e-02)
@@ -621,7 +538,6 @@ class ShipDesViewWidget(QWidget):
             0.2203, -0.0514, 0.2110, 0.0486, 0.0046, -0.1433, 0.2680, 0.2283 # 105-112
         )
         
-        # From Sub_freeboard
         self._E5=0.2; self._Y1=0.5; self._Y2=0.0
         self._L2 = (30, 40, 60, 80, 100, 120, 140, 160, 180, 200,
                     220, 240, 260, 280, 300, 320, 340, 360)
@@ -630,15 +546,12 @@ class ShipDesViewWidget(QWidget):
         self._F2 = (250, 334, 573, 887, 1271, 1690, 2109, 2520, 2915, 3264,
                     3586, 3880, 4152, 4397, 4630, 4844, 5055, 5260)
 
-        # --- MODIFIED: Cost parameters (moved from static) ---
-        # These are now member variables, accessible by the Modify dialog
         self.m_S1_Steel1 = 22000.0   # Steel cost param 1
         self.m_S2_Steel2 = 3800.0    # Steel cost param 2
         self.m_S3_Outfit1 = 240000.0 # Outfit cost param 1
         self.m_S4_Outfit2 = 50000.0  # Outfit cost param 2
         self.m_S5_Machinery1 = 9500.0  # Machinery cost param 1 (conventional)
         self.m_S6_Machinery2 = 21000.0 # Machinery cost param 2 (conventional)
-        
         self.m_H2_Crew = 3000000.0    # Annual crew cost
         self.m_H3_Maint_Percent = 0.04 # Maintenance as % of build cost (was 0.05)
         self.m_H4_Port = 1500000.0   # Annual port/admin
@@ -646,45 +559,29 @@ class ShipDesViewWidget(QWidget):
         self.m_H6_Overhead = 1500000.0 # Annual overhead
         self.m_H8_Other = 0.0       # Annual other
 
-        # --- MODIFICATION: Imports moved here ---
         from dialog_modify import ModifyDialog
         from dialog_readme import ReadmeDialog
 
-        # --- Create Dialog Instances ---
         self.dlg_modify = ModifyDialog(self)
         self.dlg_outopt = OutoptDialog(self)
         self.dlg_readme = ReadmeDialog(self)
 
-        # --- Create UI Controls (from ShipDes.rc) ---
-        #
         self.combo_ship = QComboBox()
-        # Load keys from ShipConfig. Only load the first 3 for now if you want to be safe,
-        # or load all of them. Let's load all keys to enable the new types immediately.
         self.combo_ship.addItems(list(ShipConfig.DATA.keys()))
         
-        #
         self.combo_engine = QComboBox()
-        # Load keys directly from our new Config Class to ensure they match
         self.combo_engine.addItems(list(FuelConfig.DATA.keys()))
         
-        #
         self.btn_calculate = QPushButton("&Calculate")
-        #
         self.btn_save = QPushButton("&Save the output")
-        #
         self.check_append = QCheckBox("&Append")
-        
-        #
         self.radio_cargo = QRadioButton("Cargo deadweight")
         self.radio_ship = QRadioButton("Ship dimensions") #
         self.radio_teu = QRadioButton("TEU Capacity") # NEW
         self.edit_weight = QLineEdit() #
         self.edit_error = QLineEdit() #
-        
-        # --- NEW: TEU UI ---
         self.edit_teu = QLineEdit()
         self.edit_teu_weight = QLineEdit()
-        
         self.check_lbratio = QCheckBox("L/B") #
         self.edit_lbratio = QLineEdit() #
         self.check_bvalue = QCheckBox("B") #
@@ -693,27 +590,20 @@ class ShipDesViewWidget(QWidget):
         self.edit_btratio = QLineEdit() #
         self.check_cbvalue = QCheckBox("CB") #
         self.edit_cbvalue = QLineEdit() #
-        
         self.check_pdtratio = QCheckBox("Prop.dia. to T ratio") #
         self.edit_pdtratio = QLineEdit() #
-        
         self.edit_length = QLineEdit() #
         self.edit_breadth = QLineEdit() #
         self.edit_draught = QLineEdit() #
         self.edit_depth = QLineEdit() #
         self.edit_block = QLineEdit() #
-        
         self.edit_speed = QLineEdit() #
         self.edit_range = QLineEdit() #
         self.edit_prpm = QLineEdit() #
         self.edit_erpm = QLineEdit() #
-        
-        #
         self.check_econom = QCheckBox("Economic analysis required")
         self.edit_voyages = QLineEdit() #
         self.edit_seadays = QLineEdit() #
-        
-        # --- MODIFIED: Nuclear and Fuel UI ---
         self.label_fuel = QLabel("Fuel cost per tonne:")
         self.edit_fuel = QLineEdit() #
         self.label_reactor_cost = QLabel("Reactor Cost ($/kW):") # <-- CHANGED
@@ -722,25 +612,18 @@ class ShipDesViewWidget(QWidget):
         self.edit_core_life = QLineEdit()
         self.label_decom_cost = QLabel("Decomm. Cost (M$):")
         self.edit_decom_cost = QLineEdit()
-
         self.edit_interest = QLineEdit() #
         self.edit_repay = QLineEdit() #
-        
-        #
         self.text_results = QTextEdit()
         self.text_results.setReadOnly(True)
         self.text_results.setFontFamily("Courier New")
-        
-        # Buttons to open dialogs
         self.btn_modify = QPushButton("&Modify parameters") #
         self.btn_outopt = QPushButton("&Output options") #
 
-        # --- Lay out the form ---
         main_layout = QHBoxLayout()
         left_col = QVBoxLayout()
         left_col.setSpacing(8)
         
-        # Top bar
         top_bar_layout = QHBoxLayout()
         top_bar_layout.addWidget(QLabel("Ship type:")) #
         top_bar_layout.addWidget(self.combo_ship)
@@ -750,7 +633,6 @@ class ShipDesViewWidget(QWidget):
         top_bar_layout.addWidget(self.check_append)
         left_col.addLayout(top_bar_layout)
         
-        # Input Group
         input_group = QGroupBox("Input:") #
         input_layout = QFormLayout()
         input_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
@@ -769,7 +651,6 @@ class ShipDesViewWidget(QWidget):
         dw_layout.addWidget(self.edit_error)
         input_layout.addRow(dw_layout)
         
-        # --- NEW: TEU Layout (Modified for Visibility Control) ---
         self.layout_teu_container = QWidget() # Wrapper to hide/show the whole row
         teu_layout = QHBoxLayout(self.layout_teu_container)
         teu_layout.setContentsMargins(0, 0, 0, 0) # Remove padding so it fits nicely
@@ -784,7 +665,6 @@ class ShipDesViewWidget(QWidget):
         
         input_layout.addRow(self.layout_teu_container) # Add the container, not the layout
 
-        # Constraints Sub-Group
         constraints_group = QGroupBox("And you can also specify:") #
         constraints_layout = QGridLayout()
         constraints_layout.addWidget(self.check_lbratio, 0, 0)
@@ -796,7 +676,6 @@ class ShipDesViewWidget(QWidget):
         constraints_layout.addWidget(self.check_cbvalue, 0, 3)
         constraints_layout.addWidget(self.edit_cbvalue, 1, 3)
 
-        # 1. Initialize the Widgets
         self.check_vol_limit = QCheckBox("Enforce Volume Limit")
         self.check_vol_limit.setChecked(True)
         self.check_vol_limit.setToolTip("If checked, dimensions will expand to fit Cargo volume.")
@@ -806,7 +685,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_density.setFixedWidth(60) 
         self.edit_density.setToolTip("Override density.\n(Ore ~2.5, Grain ~0.75, Oil ~0.85)")
         
-        # 2. Add them to the layout (Row 2)
         constraints_layout.addWidget(self.check_vol_limit, 2, 0, 1, 2) 
         constraints_layout.addWidget(self.label_density, 2, 2)
         constraints_layout.addWidget(self.edit_density, 2, 3)
@@ -846,11 +724,9 @@ class ShipDesViewWidget(QWidget):
         input_group.setLayout(input_layout)
         left_col.addWidget(input_group)
 
-        # --- NEW: Energy Saving Devices (ESD) Group ---
         esd_group = QGroupBox("Energy Saving Devices (ESD)")
         esd_layout = QGridLayout()
         
-        # 1. Air Lubrication System (ALS)
         self.check_als = QCheckBox("Air Lubrication")
         self.check_als.setToolTip("Injects air bubbles under the hull to reduce friction.")
         self.check_als.toggled.connect(self._reset_dlg)
@@ -860,7 +736,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_als_eff.setFixedWidth(50)
         self.edit_als_eff.setToolTip("Reduction applied to the Bottom Friction component.")
         
-        # 2. Wind Assist (Placeholder)
         self.check_wind = QCheckBox("Wind Assist")
         self.check_wind.setToolTip("Sails/Rotors to reduce engine load.")
         self.check_wind.toggled.connect(self._reset_dlg)
@@ -869,7 +744,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_wind_sav = QLineEdit("10.0")
         self.edit_wind_sav.setFixedWidth(50)
         
-        # Layout
         esd_layout.addWidget(self.check_als, 0, 0)
         esd_layout.addWidget(self.label_als_eff, 0, 1)
         esd_layout.addWidget(self.edit_als_eff, 0, 2)
@@ -881,34 +755,27 @@ class ShipDesViewWidget(QWidget):
         esd_group.setLayout(esd_layout)
         left_col.addWidget(esd_group) # Add to main column
 
-        # --- NEW: Auxiliary & Cargo Loads Group ---
         aux_group = QGroupBox("Auxiliary & Hotel Loads")
         aux_layout = QGridLayout()
         
-        # 1. Master Switch
         self.check_aux_enable = QCheckBox("Include Auxiliary Power Analysis")
         self.check_aux_enable.setToolTip("Calculates electrical loads for crew, hotel, and reefers.\nAdds weight for generators and fuel.")
         self.check_aux_enable.toggled.connect(self._reset_dlg)
         aux_layout.addWidget(self.check_aux_enable, 0, 0, 1, 3)
         
-        # 2. Base Load (Hotel)
         self.label_aux_base = QLabel("Base Hotel Load (kW):")
         self.edit_aux_base = QLineEdit("250.0") # Default for small cargo
         self.edit_aux_base.setToolTip("Lighting, pumps, nav, crew AC (excluding cargo).")
         aux_layout.addWidget(self.label_aux_base, 1, 0)
         aux_layout.addWidget(self.edit_aux_base, 1, 1)
         
-        # 3. Refrigeration Mode
-        # --- MODIFICATION: Store label to allow hiding it later ---
         self.label_aux_mode_title = QLabel("Cargo Cooling:") 
         aux_layout.addWidget(self.label_aux_mode_title, 2, 0)
-        # --------------------------------------------------------
         self.combo_aux_mode = QComboBox()
         self.combo_aux_mode.addItems(["None", "Reefer Plugs (Container)", "Insulated Hold (Bulk)"])
         self.combo_aux_mode.currentIndexChanged.connect(self._reset_dlg)
         aux_layout.addWidget(self.combo_aux_mode, 2, 1, 1, 2)
         
-        # 4. Dynamic Inputs (Row 3)
         self.label_aux_p1 = QLabel("Reefer Capacity (%):")
         self.edit_aux_p1 = QLineEdit("10.0") # % of TEU or Vol
         self.label_aux_p2 = QLabel("Load (kW/unit):")
@@ -917,11 +784,9 @@ class ShipDesViewWidget(QWidget):
         aux_layout.addWidget(self.label_aux_p1, 3, 0)
         aux_layout.addWidget(self.edit_aux_p1, 3, 1)
         
-        # Row 4 (Power density)
         aux_layout.addWidget(self.label_aux_p2, 4, 0)
         aux_layout.addWidget(self.edit_aux_p2, 4, 1)
         
-        # 5. Economics (Freight Premium)
         self.label_aux_prem = QLabel("Freight Premium($):")
         self.edit_aux_prem = QLineEdit("0.0")
         self.edit_aux_prem.setToolTip("Extra income per tonne/TEU for refrigerated cargo")
@@ -930,9 +795,6 @@ class ShipDesViewWidget(QWidget):
         
         aux_group.setLayout(aux_layout)
         left_col.addWidget(aux_group)
-        # ------------------------------------------
-
-        # --- FIXED: Economic Group ---
         eco_group = QGroupBox()
         eco_layout = QFormLayout()
         eco_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
@@ -941,11 +803,9 @@ class ShipDesViewWidget(QWidget):
         
         eco_grid = QGridLayout()
 
-        # Row 0: Voyages and Sea Days
         eco_grid.addWidget(QLabel("Voyages per year:"), 0, 0)
         eco_grid.addWidget(self.edit_voyages, 0, 1)
 
-        # Route Button
         self.btn_route_cfg = QPushButton("Route..")
         self.btn_route_cfg.setMaximumWidth(60)
         self.btn_route_cfg.clicked.connect(self.on_config_route)
@@ -953,20 +813,15 @@ class ShipDesViewWidget(QWidget):
 
         eco_grid.addWidget(QLabel("Sea days per year:"), 0, 3)
         eco_grid.addWidget(self.edit_seadays, 0, 4)
-        
-        # Row 1: Fuel Properties
-        # Fuel Price
+
         eco_grid.addWidget(self.label_fuel, 1, 0)
         eco_grid.addWidget(self.edit_fuel, 1, 1)
-        
-        # Energy Density (This was missing in your file!)
+
         self.label_lhv = QLabel("Energy Density (MJ/kg):")
         self.edit_lhv = QLineEdit() 
         eco_grid.addWidget(self.label_lhv, 1, 3)
         eco_grid.addWidget(self.edit_lhv, 1, 4)
 
-        # Row 2: Carbon Tax
-        # We put this in a sub-layout to span across the grid
         tax_layout = QHBoxLayout()
         self.check_carbon_tax = QCheckBox("Carbon Tax?")
         self.check_carbon_tax.toggled.connect(self._reset_dlg)
@@ -978,54 +833,41 @@ class ShipDesViewWidget(QWidget):
         tax_layout.addWidget(self.edit_ctax_rate)
         tax_layout.addStretch()
         
-        # Add tax layout to Row 2, spanning 5 columns
         eco_grid.addLayout(tax_layout, 2, 0, 1, 5)
 
-        # Row 3: Nuclear Controls (Reactor Cost & Life)
         eco_grid.addWidget(self.label_reactor_cost, 3, 0)
         eco_grid.addWidget(self.edit_reactor_cost, 3, 1)
         eco_grid.addWidget(self.label_core_life, 3, 3)
         eco_grid.addWidget(self.edit_core_life, 3, 4)
         
-        # Row 4: Financials (Interest & Repay)
         eco_grid.addWidget(QLabel("Interest rate (%):"), 4, 0)
         eco_grid.addWidget(self.edit_interest, 4, 1)
         eco_grid.addWidget(QLabel("No. years to repay:"), 4, 3)
         eco_grid.addWidget(self.edit_repay, 4, 4)
 
-        # Row 5: Decommissioning Cost
         eco_grid.addWidget(self.label_decom_cost, 5, 0)
         eco_grid.addWidget(self.edit_decom_cost, 5, 1)
 
-        # --- NEW: EEDI Checkbox ---
         self.check_eedi = QCheckBox("Calculate EEDI (Phase 3)")
         self.check_eedi.setToolTip("Calculates Energy Efficiency Design Index against IMO Reference Lines")
         self.check_eedi.toggled.connect(self._reset_dlg) # Connect to reset logic
         
-        # --- NEW: CII Checkbox ---
         self.check_cii = QCheckBox("Calculate CII Rating")
         self.check_cii.setToolTip("Calculates Carbon Intensity Indicator (A-E Rating) based on operational profile.")
         self.check_cii.toggled.connect(self._reset_dlg)
 
-        # Add to the Tax Layout (Row 2 of eco_grid) or a new row
-        # Let's add it to the existing tax_layout for tidiness:
         tax_layout.addWidget(self.check_eedi)
         tax_layout.addWidget(self.check_cii)
 
-        # Finalize Layout
         eco_layout.addRow(eco_grid)
         eco_group.setLayout(eco_layout)
         left_col.addWidget(eco_group)
 
-        # --- MODIFIED: Range Analysis Group ---
-        # --- MODIFIED: Range Analysis Group (With 2nd Parameter) ---
         range_group = QGroupBox("Range Analysis (2D Line or 3D Surface)")
         range_layout = QGridLayout()
-        
-        # --- Parameter 1 (X-Axis) ---
+
         range_layout.addWidget(QLabel("<b>Input 1 (X-Axis):</b>"), 0, 0)
         self.combo_param_vary = QComboBox()
-        # Note: Added Reactor Cost to this list
         self.param_list = [
             "Block Co.", "Speed(knts)", "Cargo deadweight(t)", 
             "TEU Capacity", "L/B Ratio", "B(m)", "B/T Ratio",
@@ -1044,7 +886,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_range_steps = QLineEdit("8")
         range_layout.addWidget(self.edit_range_steps, 2, 1)
 
-        # --- Parameter 2 (Y-Axis for 3D, Optional for 2D) ---
         range_layout.addWidget(QLabel("<b>Input 2 (Y-Axis / 3D Only):</b>"), 3, 0)
         self.check_enable_3d = QCheckBox("Enable 2nd Input")
         range_layout.addWidget(self.check_enable_3d, 3, 1, 1, 2)
@@ -1065,7 +906,6 @@ class ShipDesViewWidget(QWidget):
         self.edit_range_steps_2 = QLineEdit("8")
         range_layout.addWidget(self.edit_range_steps_2, 6, 1)
 
-        # --- Result Output (Y for 2D, Z for 3D) ---
         range_layout.addWidget(QLabel("<b>Output (Y or Z Axis):</b>"), 7, 0)
         self.combo_param_y = QComboBox()
         self.combo_param_y.addItems([
@@ -1076,13 +916,11 @@ class ShipDesViewWidget(QWidget):
         self.combo_param_y.setCurrentText("RFR($/tonne or $/TEU)")
         range_layout.addWidget(self.combo_param_y, 7, 1, 1, 3)
 
-        # Buttons
         self.btn_run_range = QPushButton("Run & Save CSV")
         range_layout.addWidget(self.btn_run_range, 8, 0, 1, 2)
         self.btn_run_plot = QPushButton("Run & Plot Graph")
         range_layout.addWidget(self.btn_run_plot, 8, 2, 1, 2)
 
-        # Logic to disable 2nd input fields if checkbox is off
         def toggle_3d_inputs(checked):
             self.combo_param_vary_2.setEnabled(checked)
             self.edit_range_start_2.setEnabled(checked)
@@ -1094,26 +932,21 @@ class ShipDesViewWidget(QWidget):
 
         range_group.setLayout(range_layout)
         left_col.addWidget(range_group)
-        # --- END: Range Analysis Group ---
-        # --- NEW: Competitive Analysis Group (Any vs Any) ---
         comp_group = QGroupBox("Competitive Analysis (Battle Mode)")
         comp_layout = QGridLayout()
         
-        # Select Engine A
         comp_layout.addWidget(QLabel("Engine A (Red):"), 0, 0)
         self.combo_battle_A = QComboBox()
         self.combo_battle_A.addItems(list(FuelConfig.DATA.keys()))
         self.combo_battle_A.setCurrentIndex(0) # Default: Diesel
         comp_layout.addWidget(self.combo_battle_A, 0, 1)
 
-        # Select Engine B
         comp_layout.addWidget(QLabel("Engine B (Green):"), 1, 0)
         self.combo_battle_B = QComboBox()
         self.combo_battle_B.addItems(list(FuelConfig.DATA.keys()))
         self.combo_battle_B.setCurrentIndex(4) # Default: Hydrogen (or similar)
         comp_layout.addWidget(self.combo_battle_B, 1, 1)
 
-        # Speed Range Inputs (Shared X-Axis)
         comp_layout.addWidget(QLabel("Speed Range (knots):"), 2, 0)
         
         speed_layout = QHBoxLayout()
@@ -1133,7 +966,6 @@ class ShipDesViewWidget(QWidget):
         
         comp_layout.addLayout(speed_layout, 2, 1)
 
-        # "Run Battle" Button
         self.btn_run_battle = QPushButton("Run Comparison Battle")
         self.btn_run_battle.setStyleSheet("font-weight: bold; color: darkblue;")
         self.btn_run_battle.clicked.connect(self.on_run_battle)
@@ -1142,7 +974,6 @@ class ShipDesViewWidget(QWidget):
         comp_group.setLayout(comp_layout)
         left_col.addWidget(comp_group)
         
-        # Dialog Buttons
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.btn_modify)
         button_layout.addWidget(self.btn_outopt)
@@ -1153,12 +984,9 @@ class ShipDesViewWidget(QWidget):
         
         main_layout.addLayout(left_col)
         main_layout.addWidget(self.text_results, 1) # Add results box with stretch
-        # --- MODIFIED: Add Scroll Area ---
-        # Create a holder widget for the layout we just built
         content_widget = QWidget()
         content_widget.setLayout(main_layout)
 
-        # Create the scroll area
         from PySide6.QtWidgets import QScrollArea 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -2908,10 +2736,8 @@ class ShipDesViewWidget(QWidget):
                 W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]
                 self.calculated_fuel_mass = W3
 
-        # --- MODIFIED: Add Aux Fuel to W3 ---
         if hasattr(self, 'W_aux_fuel'):
             W3 += self.W_aux_fuel # Add generator fuel to total fuel weight
-        # -----------------------------------
 
         W4 = 13.0 * (self.M ** 0.35) 
         
@@ -2922,13 +2748,11 @@ class ShipDesViewWidget(QWidget):
 
     def _power(self):
         """Port of Sub_power"""
-        # ... (UNCHANGED, except for F9 for nuclear) ...
         self.Kpwrerr = 1
         m0 = 0
         mm = self.maxit
         X0 = 20.0 * (self.C - 0.675)
         L1_safe = self.L1 if self.L1 > 0 else 1e-9
-        # --- NEW: Physics & Dimensionless Numbers ---
         g = 9.81
         v_ms = self.V * 0.5144  # knots to m/s
         viscosity = 1.188e-6    # Seawater kinematic viscosity
@@ -2936,15 +2760,12 @@ class ShipDesViewWidget(QWidget):
         self.froude_number = v_ms / math.sqrt(g * L1_safe)
         self.reynolds_number = (v_ms * L1_safe) / viscosity
         
-        # --- NEW: LCB Estimation (Schneekluth) ---
-        # Optimal LCB as % Lbp from amidships (+ is forward, - is aft)
         self.lcb_optimal = 8.8 * (self.froude_number - 0.18)
         
         V0 = self.V / math.sqrt(3.28 * L1_safe)
         W0 = (self.L1 * self.B * self.T * self.C) ** (1/3)
         if W0 == 0: W0 = 1e-9
         
-        # ... (Debug and V0 range checks - UNCHANGED) ...
         if self.dbgmd and self.m_Cargo == 0:
             msg = f"V0={V0:6.3f} (range 0.35-0.90)"
             QMessageBox.information(self, "Debug V0", msg)
@@ -3023,7 +2844,6 @@ class ShipDesViewWidget(QWidget):
         self.Q2 = (1.0 - T9) / (1.0 - W9)
         self.Q = self.Q1 * self.Q2; P5 += P4
         
-        # ... (Debug and P5 pitch range checks - UNCHANGED) ...
         if self.dbgmd and self.m_Cargo == 0:
             msg = f"P5={P5:7.4f} (range {L3:4.2f}-{L4:4.2f})"
             QMessageBox.information(self, "Debug P5", msg)
@@ -3045,8 +2865,6 @@ class ShipDesViewWidget(QWidget):
         elif self.Ketype == 3: self.F9 = 0.95 # Steam
         elif self.Ketype == 4: self.F9 = 0.95 # Nuclear
         else:
-            # Hydrogen (5), Ammonia (6), Electric (7)
-            # These all use Electric Motors/drives, which are very efficient.
             self.F9 = 0.96
             
         Q_safe = self.Q if self.Q != 0 else 1e-9
@@ -3064,8 +2882,6 @@ class ShipDesViewWidget(QWidget):
         Does not feed back into P1/P2 to avoid changing original results.
         """
         try:
-            # 1. Hull Efficiency (eta_H)
-            # Wake fraction (w) and Thrust deduction (t) estimates
             if self.Kstype == 1: # Tanker
                 w = 0.5 * self.C - 0.05
             else: # Bulk/Cargo
@@ -3074,9 +2890,6 @@ class ShipDesViewWidget(QWidget):
             t = 0.8 * w # Standard approximation
             self.diag_eta_h = (1.0 - t) / (1.0 - w) if (1.0 - w) != 0 else 1.0
             
-            # 2. Open Water Efficiency (eta_O)
-            # Extracted from the total Q (QPC) provided by the original solver
-            # QPC = eta_H * eta_O * eta_R. Assuming eta_R = 1.0 for diagnostics.
             eta_r = 1.0
             if self.diag_eta_h > 0:
                 self.diag_eta_o = self.Q / (self.diag_eta_h * eta_r)
@@ -3107,7 +2920,6 @@ class ShipDesViewWidget(QWidget):
 
     def on_button_save(self):
         """Port of OnButtonSave"""
-        # ... (UNCHANGED) ...
         if not self.CalculatedOk and self.Ksaved:
             QMessageBox.warning(self, "System:", "No new data to save.")
             return
@@ -3125,19 +2937,16 @@ class ShipDesViewWidget(QWidget):
 
     def on_dialog_modify(self):
         """Port of OnDialogModify"""
-        #
         self.Kstype = self.combo_ship.currentIndex() + 1
         self.MdfEnable[0] = (self.m_Lbratio or self.m_Bvalue)
         self.MdfEnable[1] = self.m_Cbvalue
         self.dlg_modify.set_enable(self.MdfEnable)
         
-        # --- MODIFIED: Add cost parameters to data dict ---
         data = {
             'Lb01': self.Lb01, 'Lb02': self.Lb02, 'Lb03': self.Lb03, 'Lb04': self.Lb04, 'Lb05': self.Lb05,
             'Maxit': self.maxit, 'Ignspd': self.ignspd, 'Ignpth': self.ignpth, 'dbgmd': self.dbgmd,
             'Note': f"({self.combo_ship.currentText()} with {self.combo_engine.currentText()})",
             
-            # New Cost Params
             'S1_Steel1': self.m_S1_Steel1,
             'S2_Steel2': self.m_S2_Steel2,
             'S3_Outfit1': self.m_S3_Outfit1,
@@ -3145,13 +2954,11 @@ class ShipDesViewWidget(QWidget):
             'S5_Machinery1': self.m_S5_Machinery1,
             'S6_Machinery2': self.m_S6_Machinery2,
             'H3_Maint_Percent': self.m_H3_Maint_Percent,
-            # Also adding the other fixed costs so user can modify them
             'H2_Crew': self.m_H2_Crew,
             'H4_Port': self.m_H4_Port,
             'H5_Stores': self.m_H5_Stores,
             'H6_Overhead': self.m_H6_Overhead,
         }
-        # --- End of MODIFICATION ---
         
         if self.Kstype == 1:
             data.update({'Cb01': self.Cb11, 'Cb02': self.Cb12, 'Cb03': self.Cb13, 'Cb04': self.Cb14, 'Cb05': self.Cb15,
@@ -3219,23 +3026,18 @@ class ShipDesViewWidget(QWidget):
         """
         Refreshes the UI state (Enable/Disable/Hide) based on current selections.
         """
-        # 1. Get Current Ship Data
         ship_name = self.combo_ship.currentText()
         ship_data = ShipConfig.get(ship_name)
         ship_id = ship_data.get("ID", 0)
 
-        # --- LOGIC: Which ships support Cooling? ---
-        # 4=Container, 2=Bulk, 3=Cargo
         supports_cooling = (ship_id in [2, 3, 4])
         
-        # Define what options are allowed for this ship type
         wanted_items = ["None"]
         if ship_id == 4: # Container Ship
             wanted_items.append("Reefer Plugs (Container)")
         elif ship_id in [2, 3]: # Bulk Carrier (2) or Cargo Vessel (3)
             wanted_items.append("Insulated Hold (Bulk)")
 
-        # Update Dropdown Items (only if changed, to prevent loops)
         current_items = [self.combo_aux_mode.itemText(i) for i in range(self.combo_aux_mode.count())]
         if current_items != wanted_items:
             self.combo_aux_mode.blockSignals(True)
@@ -3244,7 +3046,6 @@ class ShipDesViewWidget(QWidget):
             self.combo_aux_mode.setCurrentIndex(0) # Default to None
             self.combo_aux_mode.blockSignals(False)
 
-        # 2. Check if this is a Container Ship (ID 4) for TEU Radio
         is_container_ship = (ship_id == 4)
         self.radio_teu.setEnabled(is_container_ship)
         
@@ -3254,10 +3055,8 @@ class ShipDesViewWidget(QWidget):
         elif self.radio_teu.isChecked():
              self.radio_cargo.setChecked(True)
 
-        # --- VISIBILITY LOGIC ---
         is_aux_on = self.check_aux_enable.isChecked()
         
-        # A. Base Hotel Load: Visible if Aux is ON (regardless of ship type)
         self.label_aux_base.setVisible(is_aux_on)
         self.edit_aux_base.setVisible(is_aux_on)
         
@@ -3439,36 +3238,16 @@ class ShipDesViewWidget(QWidget):
                 p_cargo = (vol_est / 1000.0) * load_factor
                 self.M_aux_outfit = vol_est * 0.02 # Insulation weight
             
-            # (If mode is "None", p_cargo stays 0.0)
-            # -----------------------------------------------
-            mode = self.combo_aux_mode.currentIndex()
-            pct = float(self.edit_aux_p1.text()) / 100.0
-            load_factor = float(self.edit_aux_p2.text())
-            
-            if mode == 1: # Reefer Plugs
-                # If in TEU mode use TEU, else estimate from Target Weight
-                base_units = self.m_TEU if (self.design_mode == 2) else (self.W / 14.0)
-                p_cargo = base_units * pct * load_factor
-            elif mode == 2: # Insulated Hold
-                # Estimate volume from Target Weight (approximate)
-                vol_est = self.W * 1.5 # approx stowage factor
-                p_cargo = (vol_est / 1000.0) * load_factor
-                self.M_aux_outfit = vol_est * 0.02 # Insulation weight
-            
-            # --- FIX: Store as self.P_cargo_cooling for output ---
             self.P_cargo_cooling = p_cargo
                 
             self.P_aux_total = self.P_hotel + self.P_cargo_cooling
 
-            # --- 3. Handle NUCLEAR vs CONVENTIONAL ---
             is_nuclear = (self.Ketype == 4) 
             
             if is_nuclear:
-                # NUCLEAR LOGIC:
                 self.P2 += self.P_aux_total
                 
             else:
-                # CONVENTIONAL LOGIC:
                 # 1. Add Mass for Diesel Generators
                 self.M_aux_mach = (self.P_aux_total * 1.25 * 12.0) / 1000.0
                 
