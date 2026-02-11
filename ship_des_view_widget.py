@@ -62,10 +62,10 @@ class FuelConfig:
             "Machinery": 9.0,  # Turbines are light; Boilers are the heavy part
             "IsNuclear": False
         },
-        "Nuclear Steam Turbine": {
+        "Nuclear SMR": {
             "LHV": 0.0,
             "Density": 0.0,
-            "Efficiency": 0.35, # Saturated steam cycle
+            "Efficiency": 0.35,
             "TankFactor": 0.0,
             "VolFactor": 0.0,
             "Carbon": 0.0,
