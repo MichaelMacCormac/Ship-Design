@@ -4,12 +4,12 @@
 
 This is a Python application designed for naval architects. It goes beyond simple empirical formulas by integrating an iterative hull solver with detailed economic modeling for alternative fuels—including Nuclear, Hydrogen, Ammonia, and Methanol.
 
-Allowing a high level analysis of differing fuel, ship types and configurations to find base parameters that can be used as a starting point for further exploration.
+Facilitating a high-level analysis of differing fuel, ship types and configurations to find base parameters that can be used as a starting point for further exploration.
 
 ## Key Features
 
 ### 1. Hull Optimisation
-* **Iterative Solver:** Automatically solves for Length ($L_{bp}$), Breadth ($B$), Draft ($T$), and Block Coefficient ($C_B$) based on deadweight or TEU targets (If Container Ship is selected).
+* **Iterative Solver:** Automatically solves for Length ($L_{bp}$), Breadth ($B$), Draught ($T$), and Block Coefficient ($C_B$) based on deadweight or TEU targets (if Container Ship is selected).
 * **Volume Constraints:** Features a volumer limiter that detects when low-density fuels (like Liquid Hydrogen) require hull expansion and auto-adjusts dimensions to fit the fuel tanks.
 * **Resistance Prediction:** Calculates frictional, wave-making, and air resistance.
 * **Energy Saving Devices (ESD):** Ability to model the impact of Air Lubrication Systems and Wind Assist technologies on power reduction.
@@ -22,14 +22,14 @@ A multitude of alternative fuel types. The volume constraints account for specif
 
 ### 3. Economic & Commercial Modeling
 * **RFR Calculation:** Precise calculation of **Required Freight Rate** (tonne or TEU) to break even.
-* **Carbon Economics:** Integrated **Carbon Tax** modeling ($CO_2$) to stress-test designs against future regulations.
+* **Carbon Economics:** Integrated **Carbon Tax** modeling to stress-test designs against future regulations.
 * **Cold Chain Analysis:** Detailed auxiliary load analysis for refrigerated cargo (Reefers), including premium freight income calculations.
 
 ### 4. Emission Regulatory Compliance
-* **EEDI Phase 3:** Automatically calculates the attained Energy Efficiency Design Index against reference baselines.
+* **EEDI:** Automatically calculates the attained Energy Efficiency Design Index against reference baselines.
 * **CII Rating:** Estimates the Carbon Intensity Indicator rating (A to E) based on the operational profile.
 
-### 5. Advanced Visualization & Analysis
+### 5. Advanced Visualisation & Analysis
 * **Battle Mode:** Run head-to-head comparisons of two engine types (e.g., *Nuclear vs. Ammonia*) across a speed range to visualise their economic impacts.
 * **Range Analysis:** Perform 1D or 2D parameter sweeps (e.g., *Speed vs. Block Coefficient*) and export the results to CSV or 3D wireframe plots.
 * **Route Profiler:** Define custom voyages (e.g., *Asia-Europe via Suez*) with segmented speed profiles to get accurate annual fuel consumption.
@@ -43,7 +43,7 @@ A multitude of alternative fuel types. The volume constraints account for specif
 ### Setup
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/MichaelMacCormac/Ship-Design.git](https://github.com/MichaelMacCormac/Ship-Design.git)
+    git clone https://github.com/MichaelMacCormac/Ship-Design.git
     cd Ship-Design
     ```
 
@@ -66,7 +66,7 @@ python ship_des_view_widget.py
 3.  **Input Targets:** Enter the desired Cargo Deadweight (tonnes) or TEU capacity in the input fields.
 4.  **Set Speed/Range:** Define the service speed in knots and the operational range in nautical miles.
 5.  **Calculate:** Click the **Calculate** button to initiate the iterative solver and determine the ship's optimal dimensions.
-6.  **Analyze:** Review the results in the output window, use "Output Options" to customize data points, or use "Run & Plot Graph" to visualize parameter sweeps.
+6.  **Analyse:** Review the results in the output window, use "Output Options" to customize data points, or use "Run & Plot Graph" to visualize parameter sweeps.
 
 ## Methodologies
 
