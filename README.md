@@ -58,6 +58,7 @@ Simulate the transition to green shipping with a comprehensive library of fuel t
 Run the main application interface:
 ```bash
 python ship_des_view_widget.py
+```
 
 ### Quick Start Guide
 1.  **Select Ship Type:** Choose from Tanker, Bulk Carrier, Container Ship, Cruise Ship, or Superyacht from the dropdown menu.
