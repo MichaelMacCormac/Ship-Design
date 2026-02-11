@@ -2,7 +2,7 @@
 
 **A physics-based conceptual design tool for maritime vessels and fuel types.**
 
-This is a powerful Python application designed for naval architects. It goes beyond simple empirical formulas by integrating an iterative hull solver with detailed economic modeling for alternative fuels—including Nuclear, Hydrogen, Ammonia, and Methanol.
+This is a Python application designed for naval architects. It goes beyond simple empirical formulas by integrating an iterative hull solver with detailed economic modeling for alternative fuels—including Nuclear, Hydrogen, Ammonia, and Methanol.
 
 Allowing a high level analysis of differing fuel, ship types and configurations to find base parameters that can be used as a starting point for further exploration.
 
@@ -21,8 +21,8 @@ A multitude of alternative fuel types. The volume constraints account for specif
 * **Nuclear:** Dedicated modeling for Small Modular reactors, including core life, reactor specific mass ($kg/kW$) and decommissioning fund analysis.
 
 ### 3. Economic & Commercial Modeling
-* **RFR Calculation:** Precise calculation of **Required Freight Rate** ($/tonne or $/TEU) to break even.
-* **Carbon Economics:** Integrated **Carbon Tax** modeling ($/tCO_2$) to stress-test designs against future regulations.
+* **RFR Calculation:** Precise calculation of **Required Freight Rate** (tonne or TEU) to break even.
+* **Carbon Economics:** Integrated **Carbon Tax** modeling ($CO_2$) to stress-test designs against future regulations.
 * **Cold Chain Analysis:** Detailed auxiliary load analysis for refrigerated cargo (Reefers), including premium freight income calculations.
 
 ### 4. Emission Regulatory Compliance
