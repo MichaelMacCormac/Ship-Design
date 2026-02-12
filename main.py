@@ -1,10 +1,6 @@
-# main.py
-# Replaces ShipDes.cpp
-# This is the main entry point for your application.
-
 import sys
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QSettings #
+from PySide6.QtCore import QSettings
 from main_window import MainWindow
 
 class ShipDesApp:
@@ -26,7 +22,6 @@ class ShipDesApp:
         # TODO: Check sys.argv[1:] for a file to open
         
         # Show main window (replaces ShowWindow/UpdateWindow)
-        #
         self.main_window.show()
 
     def run(self):
@@ -35,9 +30,7 @@ class ShipDesApp:
         """
         return self.app.exec()
 
-# --- The main entry point ---
 if __name__ == "__main__":
-    # The one and only ShipDesApp object
     theApp = ShipDesApp(sys.argv)
     
     # Run the app

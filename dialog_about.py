@@ -32,6 +32,7 @@ class AboutDialog(QDialog):
         right_layout.addWidget(QLabel("SES, Ship Science , University of Southampton")) #
         right_layout.addWidget(QLabel("A. F. Molland")) #
         right_layout.addWidget(QLabel("(Re-programmed by M. Tan)")) #
+        right_layout.addWidget(QLabel("(Re-Re-programmed by M. MacCormac)"))
         right_layout.addStretch()
         
         buttons = QDialogButtonBox(QDialogButtonBox.Ok) #

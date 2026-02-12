@@ -42,9 +42,7 @@ class ReadmeDialog(QDialog):
         readme_text += " Tab key, Space bar, Arrow keys,"
         readme_text += " Alt+C etc.\r\n"
         readme_text += " \r\n Please report any bug information to"
-        readme_text += " \r\n     Prof. AF Molland or Dr. M Tan.\r\n"
-        readme_text += " \r\n--- Add some useful "
-        readme_text += " Read-Me Text here later! ---\r\n"
+        readme_text += " \r\n     Prof. AF Molland or Dr. M Tan. or M. MacCormac\r\n"
         
         #
         self.text_readme.setText(readme_text)
