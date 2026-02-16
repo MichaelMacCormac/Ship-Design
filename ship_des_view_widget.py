@@ -866,33 +866,48 @@ class ShipDesViewWidget(QWidget):
         range_group = QGroupBox("Range Analysis (2D Line or 3D Surface)")
         range_layout = QGridLayout()
 
+        # 1. Define Smart Defaults for Auto-fill
+        self.RANGE_DEFAULTS = {
+            "Speed(knts)":         ("12.0", "24.0", "13"), # 1 kt steps
+            "Block Co.":           ("0.60", "0.85", "6"),
+            "Cargo deadweight(t)": ("35000", "120000", "6"),
+            "TEU Capacity":        ("1000", "14000", "8"),
+            "L/B Ratio":           ("5.0", "8.0", "7"),    # 0.5 steps
+            "B(m)":                ("25.0", "50.0", "6"),
+            "B/T Ratio":           ("2.2", "3.8", "5"),
+            "Reactor Cost ($/kW)": ("3000", "10000", "8"),
+            # -- NEW PARAMETERS --
+            "Range (nm)":          ("3000", "15000", "5"), # Crucial for alt fuels
+            "Fuel Cost ($/t)":     ("400", "1500", "6"),   # Sensitivity analysis
+            "Interest Rate (%)":   ("2.0", "10.0", "5"),   # Finance check
+            "Carbon Tax ($/t)":    ("0", "300", "7")       # Regulatory check
+        }
+
+        # 2. Setup Input 1 (X-Axis)
         range_layout.addWidget(QLabel("<b>Input 1 (X-Axis):</b>"), 0, 0)
         self.combo_param_vary = QComboBox()
-        self.param_list = [
-            "Block Co.", "Speed(knts)", "Cargo deadweight(t)", 
-            "TEU Capacity", "L/B Ratio", "B(m)", "B/T Ratio",
-            "Reactor Cost ($/kW)" 
-        ]
+        self.param_list = list(self.RANGE_DEFAULTS.keys()) # Use keys from dict
         self.combo_param_vary.addItems(self.param_list)
         range_layout.addWidget(self.combo_param_vary, 0, 1, 1, 3)
 
         range_layout.addWidget(QLabel("Start:"), 1, 0)
-        self.edit_range_start = QLineEdit("14.0") # Example speed
+        self.edit_range_start = QLineEdit() 
         range_layout.addWidget(self.edit_range_start, 1, 1)
         range_layout.addWidget(QLabel("End:"), 1, 2)
-        self.edit_range_end = QLineEdit("22.0")
+        self.edit_range_end = QLineEdit()
         range_layout.addWidget(self.edit_range_end, 1, 3)
         range_layout.addWidget(QLabel("Steps:"), 2, 0)
-        self.edit_range_steps = QLineEdit("8")
+        self.edit_range_steps = QLineEdit()
         range_layout.addWidget(self.edit_range_steps, 2, 1)
 
+        # 3. Setup Input 2 (Y-Axis / 3D Only)
         range_layout.addWidget(QLabel("<b>Input 2 (Y-Axis / 3D Only):</b>"), 3, 0)
         self.check_enable_3d = QCheckBox("Enable 2nd Input")
         range_layout.addWidget(self.check_enable_3d, 3, 1, 1, 2)
 
         self.combo_param_vary_2 = QComboBox()
-        self.combo_param_vary_2.addItems(self.param_list) # Same list
-        self.combo_param_vary_2.setCurrentText("Reactor Cost ($/kW)") # Default
+        self.combo_param_vary_2.addItems(self.param_list)
+        self.combo_param_vary_2.setCurrentText("Reactor Cost ($/kW)") 
         range_layout.addWidget(self.combo_param_vary_2, 4, 1, 1, 3)
         range_layout.addWidget(QLabel("Param:"), 4, 0)
 
@@ -906,14 +921,30 @@ class ShipDesViewWidget(QWidget):
         self.edit_range_steps_2 = QLineEdit("8")
         range_layout.addWidget(self.edit_range_steps_2, 6, 1)
 
+        # 4. Connect Auto-fill Signals
+        self.combo_param_vary.currentTextChanged.connect(
+            lambda: self._apply_range_defaults(self.combo_param_vary, 
+                                               self.edit_range_start, 
+                                               self.edit_range_end, 
+                                               self.edit_range_steps))
+
+        self.combo_param_vary_2.currentTextChanged.connect(
+            lambda: self._apply_range_defaults(self.combo_param_vary_2, 
+                                               self.edit_range_start_2, 
+                                               self.edit_range_end_2, 
+                                               self.edit_range_steps_2))
+        
+        # Trigger once to fill initial defaults
+        self._apply_range_defaults(self.combo_param_vary, self.edit_range_start, self.edit_range_end, self.edit_range_steps)
+
+        # 5. Output Selection
         range_layout.addWidget(QLabel("<b>Output (Y or Z Axis):</b>"), 7, 0)
         self.combo_param_y = QComboBox()
         self.combo_param_y.addItems([
+            "RFR($/tonne or $/TEU)", "BuildCost(M$)", "AnnualFuelCost(M$)",
             "Lbp(m)", "B(m)", "D(m)", "T(m)", "CB", "Displacement(t)",
-            "CargoDW(t)", "TotalDW(t)", "ServicePower(kW)", "InstalledPower(kW)",
-            "BuildCost(M$)", "RFR($/tonne or $/TEU)"
+            "CargoDW(t)", "TotalDW(t)", "ServicePower(kW)", "EEDI(gCO2/t.nm)"
         ])
-        self.combo_param_y.setCurrentText("RFR($/tonne or $/TEU)")
         range_layout.addWidget(self.combo_param_y, 7, 1, 1, 3)
 
         self.btn_run_range = QPushButton("Run & Save CSV")
@@ -928,10 +959,11 @@ class ShipDesViewWidget(QWidget):
             self.edit_range_steps_2.setEnabled(checked)
         
         self.check_enable_3d.toggled.connect(toggle_3d_inputs)
-        toggle_3d_inputs(False) # Default off
+        toggle_3d_inputs(False) 
 
         range_group.setLayout(range_layout)
         left_col.addWidget(range_group)
+
         comp_group = QGroupBox("Competitive Analysis (Battle Mode)")
         comp_layout = QGridLayout()
         
@@ -1389,6 +1421,15 @@ class ShipDesViewWidget(QWidget):
         self.text_results.append("-> WARNING: Volume expansion limit reached.")
         return False
 
+    def _apply_range_defaults(self, combo, edit_start, edit_end, edit_steps):
+        """Helper to auto-fill range fields based on selection."""
+        param = combo.currentText()
+        if param in self.RANGE_DEFAULTS:
+            start, end, steps = self.RANGE_DEFAULTS[param]
+            edit_start.setText(start)
+            edit_end.setText(end)
+            edit_steps.setText(steps)
+
     def on_calculate(self):
         """Port of OnButtonCal"""
 
@@ -1756,36 +1797,45 @@ class ShipDesViewWidget(QWidget):
                     self.text_results.append(f"Running step {i+1}/{steps} ({param_name} = {value:.4f})...")
                     QApplication.processEvents()
 
+                    # --- [START OF REPLACEMENT BLOCK] ---
+                    # 1. Standard Geometry/Design
                     if param_name == "Speed(knts)":
                         self.edit_speed.setText(str(value))
-                    
                     elif param_name == "Cargo deadweight(t)":
                         self.radio_cargo.setChecked(True)
                         self.edit_weight.setText(str(value))
-                    
                     elif param_name == "TEU Capacity":
                         self.radio_teu.setChecked(True)
                         self.edit_teu.setText(str(value))
-                    
                     elif param_name == "L/B Ratio":
                         if not (is_teu_mode or original_ui_state['cargo_r']): self.radio_cargo.setChecked(True)
                         self.check_lbratio.setChecked(True)
                         self.edit_lbratio.setText(str(value))
-                    
                     elif param_name == "B(m)":
                         if not (is_teu_mode or original_ui_state['cargo_r']): self.radio_cargo.setChecked(True)
                         self.check_bvalue.setChecked(True)
                         self.edit_bvalue.setText(str(value))
-
                     elif param_name == "B/T Ratio":
                         if not (is_teu_mode or original_ui_state['cargo_r']): self.radio_cargo.setChecked(True)
                         self.check_btratio.setChecked(True)
                         self.edit_btratio.setText(str(value))
-                    
                     elif param_name == "Block Co.":
                         if not (is_teu_mode or original_ui_state['cargo_r']): self.radio_cargo.setChecked(True)
                         self.check_cbvalue.setChecked(True)
                         self.edit_cbvalue.setText(str(value))
+                    
+                    # 2. Economics & Operational (NEW)
+                    elif param_name == "Reactor Cost ($/kW)":
+                        self.edit_reactor_cost.setText(str(value))
+                    elif param_name == "Range (nm)":
+                        self.edit_range.setText(str(value))
+                    elif param_name == "Fuel Cost ($/t)":
+                        self.edit_fuel.setText(str(value))
+                    elif param_name == "Interest Rate (%)":
+                        self.edit_interest.setText(str(value))
+                    elif param_name == "Carbon Tax ($/t)":
+                        self.edit_ctax_rate.setText(str(value))
+                        self.check_carbon_tax.setChecked(True)
                     
                     self.on_calculate() 
                     
@@ -1917,14 +1967,33 @@ class ShipDesViewWidget(QWidget):
                 X, Y, Z = [], [], None
 
             def set_param_value(name, val):
-                if name == "Speed(knts)": self.edit_speed.setText(str(val))
-                elif name == "Cargo deadweight(t)": self.edit_weight.setText(str(val)); self.radio_cargo.setChecked(True)
-                elif name == "TEU Capacity": self.edit_teu.setText(str(val)); self.radio_teu.setChecked(True)
-                elif name == "Reactor Cost ($/kW)": self.edit_reactor_cost.setText(str(val))
-                elif name == "L/B Ratio": self.edit_lbratio.setText(str(val)); self.check_lbratio.setChecked(True)
-                elif name == "B(m)": self.edit_bvalue.setText(str(val)); self.check_bvalue.setChecked(True)
-                elif name == "B/T Ratio": self.edit_btratio.setText(str(val)); self.check_btratio.setChecked(True)
-                elif name == "Block Co.": self.edit_cbvalue.setText(str(val)); self.check_cbvalue.setChecked(True)
+                # Standard Geometry/Design
+                if name == "Speed(knts)": 
+                    self.edit_speed.setText(str(val))
+                elif name == "Cargo deadweight(t)": 
+                    self.edit_weight.setText(str(val)); self.radio_cargo.setChecked(True)
+                elif name == "TEU Capacity": 
+                    self.edit_teu.setText(str(val)); self.radio_teu.setChecked(True)
+                elif name == "L/B Ratio": 
+                    self.edit_lbratio.setText(str(val)); self.check_lbratio.setChecked(True)
+                elif name == "B(m)": 
+                    self.edit_bvalue.setText(str(val)); self.check_bvalue.setChecked(True)
+                elif name == "B/T Ratio": 
+                    self.edit_btratio.setText(str(val)); self.check_btratio.setChecked(True)
+                elif name == "Block Co.": 
+                    self.edit_cbvalue.setText(str(val)); self.check_cbvalue.setChecked(True)
+                
+                # Economics & Range
+                elif name == "Reactor Cost ($/kW)": 
+                    self.edit_reactor_cost.setText(str(val))
+                elif name == "Range (nm)":
+                    self.edit_range.setText(str(val))
+                elif name == "Fuel Cost ($/t)":
+                    self.edit_fuel.setText(str(val))
+                elif name == "Interest Rate (%)":
+                    self.edit_interest.setText(str(val))
+                elif name == "Carbon Tax ($/t)":
+                    self.edit_ctax_rate.setText(str(val)); self.check_carbon_tax.setChecked(True)
 
             def get_result_value(name):
                 if not self.CalculatedOk: return np.nan
