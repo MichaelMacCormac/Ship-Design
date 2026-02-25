@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QPushButton, QVBoxLayout, QGroupBox, QRadioButton,
     QHBoxLayout, QMessageBox, QFileDialog, QLabel, QGridLayout,
     QApplication, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
-    QInputDialog
+    QInputDialog, QListWidget, QAbstractItemView
 )
 
 from PySide6.QtCore import Qt
@@ -421,6 +421,70 @@ class RouteDialog(QDialog):
             
         except Exception as e:
             self.lbl_total_dist.setText("Error")
+
+class BattleFuelConfigDialog(QDialog):
+    """
+    Popup to configure specific economic parameters (Fuel Price, Carbon Tax) 
+    for each engine involved in the Battle Mode.
+    """
+    def __init__(self, engines, default_fuel_price, default_carbon_tax, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configure Battle Fuel Inputs")
+        self.resize(500, 300)
+        self.engines = engines
+        self.result_data = {}
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Set the specific economic parameters for each selected fuel:"))
+        
+        self.table = QTableWidget(len(engines), 3)
+        self.table.setHorizontalHeaderLabels(["Engine / Fuel", "Fuel Price ($/t)", "Carbon Tax ($/tCO2)"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        
+        for i, engine in enumerate(engines):
+            # Engine Name (Read-Only)
+            item_name = QTableWidgetItem(engine)
+            item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(i, 0, item_name)
+            
+            # Smart defaults: If Nuclear or Battery, default fuel price to 0 or grid price
+            if engine == "Nuclear SMR":
+                price = "0.0"
+            elif engine == "Electric (Battery)":
+                price = "150.0" # Assuming ~$150/tonne equivalent for electricity
+            else:
+                price = default_fuel_price
+                
+            self.table.setItem(i, 1, QTableWidgetItem(price))
+            
+            # Default Carbon Tax
+            self.table.setItem(i, 2, QTableWidgetItem(default_carbon_tax))
+            
+        layout.addWidget(self.table)
+        
+        btn_box = QHBoxLayout()
+        btn_ok = QPushButton("Start Battle")
+        btn_cancel = QPushButton("Cancel")
+        
+        btn_ok.clicked.connect(self.accept)
+        btn_cancel.clicked.connect(self.reject)
+        
+        btn_box.addStretch()
+        btn_box.addWidget(btn_ok)
+        btn_box.addWidget(btn_cancel)
+        layout.addLayout(btn_box)
+        
+    def accept(self):
+        """Validates inputs before closing"""
+        for i, engine in enumerate(self.engines):
+            try:
+                price = float(self.table.item(i, 1).text())
+                tax = float(self.table.item(i, 2).text())
+                self.result_data[engine] = {'price': price, 'tax': tax}
+            except ValueError:
+                QMessageBox.critical(self, "Input Error", f"Invalid number entered for {engine}.")
+                return
+        super().accept()
 
 class ShipDesViewWidget(QWidget):
     """
@@ -967,17 +1031,17 @@ class ShipDesViewWidget(QWidget):
         comp_group = QGroupBox("Competitive Analysis (Battle Mode)")
         comp_layout = QGridLayout()
         
-        comp_layout.addWidget(QLabel("Engine A (Red):"), 0, 0)
-        self.combo_battle_A = QComboBox()
-        self.combo_battle_A.addItems(list(FuelConfig.DATA.keys()))
-        self.combo_battle_A.setCurrentIndex(0) # Default: Diesel
-        comp_layout.addWidget(self.combo_battle_A, 0, 1)
-
-        comp_layout.addWidget(QLabel("Engine B (Green):"), 1, 0)
-        self.combo_battle_B = QComboBox()
-        self.combo_battle_B.addItems(list(FuelConfig.DATA.keys()))
-        self.combo_battle_B.setCurrentIndex(4) # Default: Hydrogen (or similar)
-        comp_layout.addWidget(self.combo_battle_B, 1, 1)
+        comp_layout.addWidget(QLabel("Select Engines (Click to toggle):"), 0, 0, 1, 2)
+        
+        self.list_battle_engines = QListWidget()
+        self.list_battle_engines.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.list_battle_engines.addItems(list(FuelConfig.DATA.keys()))
+        self.list_battle_engines.setMaximumHeight(100)
+        
+        self.list_battle_engines.item(0).setSelected(True)
+        self.list_battle_engines.item(5).setSelected(True) 
+        
+        comp_layout.addWidget(self.list_battle_engines, 1, 0, 1, 2)
 
         comp_layout.addWidget(QLabel("Speed Range (knots):"), 2, 0)
         
@@ -1001,7 +1065,15 @@ class ShipDesViewWidget(QWidget):
         self.btn_run_battle = QPushButton("Run Comparison Battle")
         self.btn_run_battle.setStyleSheet("font-weight: bold; color: darkblue;")
         self.btn_run_battle.clicked.connect(self.on_run_battle)
-        comp_layout.addWidget(self.btn_run_battle, 3, 0, 1, 2)
+        self.btn_export_battle = QPushButton("Export Battle CSV")
+        self.btn_export_battle.setEnabled(False) # Disabled until a battle is run
+        self.btn_export_battle.clicked.connect(self.on_export_battle_csv)
+
+        battle_btn_layout = QHBoxLayout()
+        battle_btn_layout.addWidget(self.btn_run_battle)
+        battle_btn_layout.addWidget(self.btn_export_battle)
+        
+        comp_layout.addLayout(battle_btn_layout, 3, 0, 1, 2)
 
         comp_group.setLayout(comp_layout)
         left_col.addWidget(comp_group)
@@ -1200,6 +1272,9 @@ class ShipDesViewWidget(QWidget):
 
     def _show_error(self, message, title="Input error"):
         """Helper for porting MessageBox"""
+        if getattr(self, 'is_batch_mode', False):
+            return 
+            
         QMessageBox.critical(self, title, message)
         
     def _show_debug_msg(self, message, title="Info. from OnButtonCal in debug mode"):
@@ -1786,6 +1861,9 @@ class ShipDesViewWidget(QWidget):
         self.ignspd = True
         self.ignpth = True
 
+        self.is_batch_mode = True
+        total_skipped = 0
+
         try:
             with open(fileName, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
@@ -1838,6 +1916,7 @@ class ShipDesViewWidget(QWidget):
                     
                     row = [f"{value:.6g}"]
                     if not self.CalculatedOk:
+                        total_skipped += 1
                         row.extend(["CALCULATION FAILED"] * (len(header) - 1))
                     else:
                         row.extend([
@@ -1863,12 +1942,18 @@ class ShipDesViewWidget(QWidget):
                     writer.writerow(row)
             
             self.text_results.append(f"\r\n... Range analysis complete. ...")
-            QMessageBox.information(self, "Range Analysis Complete", f"Successfully saved {steps} results to {fileName}")
+            
+            msg = f"Successfully saved {steps} rows to {fileName}"
+            if total_skipped > 0:
+                msg += f"\n\nNote: {total_skipped} calculation(s) failed due to physical constraints and were marked as FAILED."
+            QMessageBox.information(self, "Range Analysis Complete", msg)
 
         except Exception as e:
             self._show_error(f"Failed to write CSV file: {e}")
         
         finally:
+            self.is_batch_mode = False
+            
             self.edit_speed.setText(original_ui_state['speed'])
             self.edit_weight.setText(original_ui_state['weight'])
             self.edit_teu.setText(original_ui_state['teu'])
@@ -1950,6 +2035,9 @@ class ShipDesViewWidget(QWidget):
         }
         self.ignspd = True; self.ignpth = True
 
+        self.is_batch_mode = True
+        total_skipped = 0
+
         try:
             range_1 = np.linspace(start_1, end_1, steps_1)
             
@@ -1964,7 +2052,6 @@ class ShipDesViewWidget(QWidget):
                 X, Y, Z = [], [], None
 
             def set_param_value(name, val):
-                # Standard Geometry/Design
                 if name == "Speed(knts)": 
                     self.edit_speed.setText(str(val))
                 elif name == "Cargo deadweight(t)": 
@@ -1980,7 +2067,6 @@ class ShipDesViewWidget(QWidget):
                 elif name == "Block Co.": 
                     self.edit_cbvalue.setText(str(val)); self.check_cbvalue.setChecked(True)
                 
-                # Economics & Range
                 elif name == "Reactor Cost ($/kW)": 
                     self.edit_reactor_cost.setText(str(val))
                 elif name == "Range (nm)":
@@ -2029,6 +2115,10 @@ class ShipDesViewWidget(QWidget):
                         set_param_value(param_name_1, val_1)
                         
                         self.on_calculate()
+                    
+                        if not self.CalculatedOk:
+                            total_skipped += 1
+                            
                         Z[i, j] = get_result_value(y_param_name)
                         
                         current_step += 1
@@ -2041,6 +2131,10 @@ class ShipDesViewWidget(QWidget):
                 for val in range_1:
                     set_param_value(param_name_1, val)
                     self.on_calculate()
+                    
+                    if not self.CalculatedOk:
+                        total_skipped += 1
+                        
                     res = get_result_value(y_param_name)
                     if not np.isnan(res):
                         x_data.append(val)
@@ -2051,6 +2145,11 @@ class ShipDesViewWidget(QWidget):
 
             self.graph_window.show()
             self.text_results.append("Plot complete.")
+            
+            if total_skipped > 0:
+                summary_msg = f"{total_skipped} calculation(s) were skipped/omitted from the plot due to physical constraints."
+                self.text_results.append(f"Note: {summary_msg}")
+                QMessageBox.warning(self, "Plot Missing Data", summary_msg)
 
         except Exception as e:
             self._show_error(f"Error during plot: {e}")
@@ -2058,6 +2157,8 @@ class ShipDesViewWidget(QWidget):
             traceback.print_exc()
 
         finally:
+            self.is_batch_mode = False
+            
             self.edit_speed.setText(original_ui_state['speed'])
             self.edit_weight.setText(original_ui_state['weight'])
             self.edit_teu.setText(original_ui_state['teu'])
@@ -2081,7 +2182,7 @@ class ShipDesViewWidget(QWidget):
     
     def on_run_battle(self):
         """
-        Runs the 'Battle Mode': Plots RFR vs Speed for two selected engines.
+        Runs the 'Battle Mode': Plots RFR vs Speed for any number of selected engines.
         """
         if FigureCanvas is None:
             self._show_error("Matplotlib not found.")
@@ -2096,18 +2197,31 @@ class ShipDesViewWidget(QWidget):
             self._show_error("Invalid speed range inputs.")
             return
             
-        idx_A = self.combo_battle_A.currentIndex()
-        idx_B = self.combo_battle_B.currentIndex()
-        name_A = self.combo_battle_A.currentText()
-        name_B = self.combo_battle_B.currentText()
-        
-        if idx_A == idx_B:
-            self._show_error("Please select two different engines to compare.")
+        selected_items = self.list_battle_engines.selectedItems()
+        if len(selected_items) < 2:
+            self._show_error("Please select at least two engines to compare.")
             return
+
+        selected_engines = [item.text() for item in selected_items]
+        
+        # --- NEW: Launch the Configuration Dialog ---
+        config_dlg = BattleFuelConfigDialog(
+            selected_engines, 
+            self.edit_fuel.text(), 
+            self.edit_ctax_rate.text(), 
+            self
+        )
+        
+        if not config_dlg.exec():
+            return # User pressed cancel
+            
+        engine_configs = config_dlg.result_data
 
         original_ui_state = {
             'engine_idx': self.combo_engine.currentIndex(),
             'speed': self.edit_speed.text(),
+            'fuel_price': self.edit_fuel.text(),
+            'carbon_tax': self.edit_ctax_rate.text(),
             'ignspd': self.ignspd, 'ignpth': self.ignpth,
             'econom': self.check_econom.isChecked()
         }
@@ -2116,56 +2230,75 @@ class ShipDesViewWidget(QWidget):
         self.check_econom.setChecked(True)     
         
         speeds = np.linspace(start_speed, end_speed, steps)
-        
-        rfr_A = []; rfr_B = []
-        valid_speeds_A = []; valid_speeds_B = []
+        battle_results = {}
+
+        self.is_batch_mode = True
+        total_skipped = 0
 
         try:
-            self.text_results.append(f"\n--- BATTLE: {name_A} vs {name_B} ---")
+            self.text_results.append(f"\n--- MULTI-ENGINE BATTLE ---")
+            self.text_results.append(f"Comparing: {', '.join(selected_engines)}")
             
-            self.text_results.append(f"Calculating {name_A}...")
-            self.combo_engine.setCurrentIndex(idx_A) 
-            QApplication.processEvents()
-            
-            for v in speeds:
-                self.edit_speed.setText(str(v))
-                self.on_calculate()
-                if self.CalculatedOk:
-                    val = self.Rf * self.m_TEU_Avg_Weight if self.radio_teu.isChecked() else self.Rf
-                    rfr_A.append(val)
-                    valid_speeds_A.append(v)
-            
-            self.text_results.append(f"Calculating {name_B}...")
-            self.combo_engine.setCurrentIndex(idx_B)
-            QApplication.processEvents()
-            
-            for v in speeds:
-                self.edit_speed.setText(str(v))
-                self.on_calculate()
-                if self.CalculatedOk:
-                    val = self.Rf * self.m_TEU_Avg_Weight if self.radio_teu.isChecked() else self.Rf
-                    rfr_B.append(val)
-                    valid_speeds_B.append(v)
+            for engine_name in selected_engines:
+                self.text_results.append(f"Calculating {engine_name}...")
+                
+                idx = self.combo_engine.findText(engine_name)
+                self.combo_engine.setCurrentIndex(idx)
+                
+                custom_price = engine_configs[engine_name]['price']
+                custom_tax = engine_configs[engine_name]['tax']
+                self.edit_fuel.setText(str(custom_price))
+                self.edit_ctax_rate.setText(str(custom_tax))
+                
+                QApplication.processEvents() # Keep UI responsive
+                
+                valid_speeds = []
+                rfr_values = []
+                
+                for v in speeds:
+                    self.edit_speed.setText(str(v))
+                    self.on_calculate()
+                    
+                    if self.CalculatedOk:
+                        val = self.Rf * self.m_TEU_Avg_Weight if self.radio_teu.isChecked() else self.Rf
+                        rfr_values.append(val)
+                        valid_speeds.append(v)
+                    else:
+                        total_skipped += 1
+                
+                battle_results[engine_name] = (valid_speeds, rfr_values)
 
-            self._show_battle_graph(valid_speeds_A, rfr_A, valid_speeds_B, rfr_B, name_A, name_B)
+            self.last_battle_results = battle_results
+            self.btn_export_battle.setEnabled(True)
+
+            self._show_battle_graph(battle_results)
             self.text_results.append("Battle Complete.\n")
+            
+            if total_skipped > 0:
+                summary_msg = f"{total_skipped} calculation(s) were skipped due to physical constraints (e.g., propeller pitch or speed limits)."
+                self.text_results.append(f"Note: {summary_msg}")
+                QMessageBox.warning(self, "Calculations Skipped", summary_msg)
 
         except Exception as e:
+            self.is_batch_mode = False 
             self._show_error(f"Error during comparison: {e}")
             
         finally:
+            self.is_batch_mode = False 
+            
             self.combo_engine.setCurrentIndex(original_ui_state['engine_idx'])
             self.edit_speed.setText(original_ui_state['speed'])
+            self.edit_fuel.setText(original_ui_state['fuel_price'])
+            self.edit_ctax_rate.setText(original_ui_state['carbon_tax'])
             self.check_econom.setChecked(original_ui_state['econom'])
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             self._reset_dlg()
 
-    def _show_battle_graph(self, x1, y1, x2, y2, name1="Engine A", name2="Engine B"):
+    def _show_battle_graph(self, results_dict):
         """
-        Helper to launch a specialized graph window for 2 lines.
+        Helper to launch a specialized graph window for multiple lines.
         """
-
         if not hasattr(self, 'battle_window') or self.battle_window is None:
             self.battle_window = QWidget()
             self.battle_window.setWindowTitle("Battle Mode")
@@ -2180,10 +2313,13 @@ class ShipDesViewWidget(QWidget):
         ax = self.battle_ax
         ax.clear()
         
-        if x1 and y1:
-            ax.plot(x1, y1, 'r-o', label=name1, linewidth=2)
-        if x2 and y2:
-            ax.plot(x2, y2, 'g-s', label=name2, linewidth=2)
+        # A list of distinct markers to cycle through so overlapping lines are easier to read
+        markers = ['o', 's', '^', 'D', 'v', 'p', '*', 'X', 'h', '+']
+        
+        for i, (engine_name, (x_data, y_data)) in enumerate(results_dict.items()):
+            if x_data and y_data:
+                marker = markers[i % len(markers)]
+                ax.plot(x_data, y_data, marker=marker, label=engine_name, linewidth=2)
             
         ax.grid(True)
         ax.legend()
@@ -2191,10 +2327,54 @@ class ShipDesViewWidget(QWidget):
         ylabel = "RFR ($/TEU)" if self.radio_teu.isChecked() else "RFR ($/tonne)"
         ax.set_xlabel("Ship Speed (knots)")
         ax.set_ylabel(ylabel)
-        ax.set_title(f"Economic Battle: {name1} vs {name2}")
+        ax.set_title("Economic Battle: Multi-Engine Comparison")
         
         self.battle_canvas.draw()
         self.battle_window.show()
+
+    def on_export_battle_csv(self):
+        """
+        Exports the stored multi-engine battle results to a CSV file.
+        """
+        if not hasattr(self, 'last_battle_results') or not self.last_battle_results:
+            return
+            
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "Save Battle Results", "battle_comparison.csv", "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not fileName:
+            return
+            
+        try:
+            with open(fileName, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                engines = list(self.last_battle_results.keys())
+                # Assume all engines ran the same speed increments, so grab the speeds from the first one
+                speeds = self.last_battle_results[engines[0]][0]
+                
+                # Write header row
+                unit = "$/TEU" if self.radio_teu.isChecked() else "$/tonne"
+                header = ["Speed (knots)"] + [f"{eng} ({unit})" for eng in engines]
+                writer.writerow(header)
+                
+                # Write data rows
+                for i in range(len(speeds)):
+                    row = [f"{speeds[i]:.2f}"]
+                    for engine in engines:
+                        rfr_list = self.last_battle_results[engine][1]
+                        # Ensure we don't go out of bounds if an engine failed early
+                        if i < len(rfr_list):
+                            row.append(f"{rfr_list[i]:.4f}")
+                        else:
+                            row.append("N/A")
+                    writer.writerow(row)
+                    
+            QMessageBox.information(self, "Export Complete", f"Successfully saved battle results to:\n{fileName}")
+            
+        except Exception as e:
+            self._show_error(f"Failed to write CSV file: {e}")
 
     def _freeboard(self):
         """Port of Sub_freeboard"""
