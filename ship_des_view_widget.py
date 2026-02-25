@@ -1797,8 +1797,6 @@ class ShipDesViewWidget(QWidget):
                     self.text_results.append(f"Running step {i+1}/{steps} ({param_name} = {value:.4f})...")
                     QApplication.processEvents()
 
-                    # --- [START OF REPLACEMENT BLOCK] ---
-                    # 1. Standard Geometry/Design
                     if param_name == "Speed(knts)":
                         self.edit_speed.setText(str(value))
                     elif param_name == "Cargo deadweight(t)":
@@ -1824,7 +1822,6 @@ class ShipDesViewWidget(QWidget):
                         self.check_cbvalue.setChecked(True)
                         self.edit_cbvalue.setText(str(value))
                     
-                    # 2. Economics & Operational (NEW)
                     elif param_name == "Reactor Cost ($/kW)":
                         self.edit_reactor_cost.setText(str(value))
                     elif param_name == "Range (nm)":
