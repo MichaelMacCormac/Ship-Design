@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QPushButton, QVBoxLayout, QGroupBox, QRadioButton,
     QHBoxLayout, QMessageBox, QFileDialog, QLabel, QGridLayout,
     QApplication, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
-    QInputDialog, QListWidget, QAbstractItemView
+    QInputDialog, QListWidget, QAbstractItemView, QScrollArea
 )
 
 from PySide6.QtCore import Qt
@@ -75,7 +75,7 @@ class FuelConfig:
         "Methanol (ICE)": {
             "LHV": 19.9,       # Low Energy Density (Alcohol)
             "Density": 792.0,  # Liquid at room temp
-            "Efficiency": 0.45,# Similar to Diesel ICE
+            "Efficiency": 0.48,# Similar to Diesel ICE
             "TankFactor": 1.20,# Tanks need special coatings but aren't pressure vessels
             "VolFactor": 1.15, # Cofferdams required for safety
             "Carbon": 1.375,   # Chemical carbon content. (Set to 0.0 for "Green Methanol")
@@ -86,10 +86,10 @@ class FuelConfig:
             "LHV": 120.0,      # High Energy
             "Density": 71.0,   # Liquid H2
             "Efficiency": 0.38,# Combustion is less efficient than Fuel Cell (0.50)
-            "TankFactor": 5.0, # Still needs massive cryogenic tanks
+            "TankFactor": 8.0, # Still needs massive cryogenic tanks
             "VolFactor": 3.0,  
             "Carbon": 0.0,     
-            "Machinery": 13.0, # LIGHTER than Fuel Cell (No heavy stack/batteries)
+            "Machinery": 15.0, # LIGHTER than Fuel Cell (No heavy stack/batteries)
             "IsNuclear": False
         },
         
@@ -97,7 +97,7 @@ class FuelConfig:
             "LHV": 50.0,       # Higher energy than diesel!
             "Density": 450.0,  # Light liquid
             "Efficiency": 0.48,# Very efficient engines
-            "TankFactor": 1.6, # Cryogenic tanks (heavy but mature tech)
+            "TankFactor": 1.8, # Cryogenic tanks (heavy but mature tech)
             "VolFactor": 1.9,  # Insulation takes space
             "Carbon": 2.75,    # Lower carbon than diesel, but not zero
             "Machinery": 16.0, # Heavy: Engine + Gas Valve Unit + Vaporizers
@@ -107,7 +107,7 @@ class FuelConfig:
             "LHV": 120.0,      # Highest energy per kg
             "Density": 71.0,   # Liquid H2 (-253C)
             "Efficiency": 0.50,# PEM Fuel Cell system efficiency
-            "TankFactor": 5.0, # CRITICAL: Cryogenic tanks weigh 4-5x the fuel they hold
+            "TankFactor": 8.0, # CRITICAL: Cryogenic tanks weigh 4-5x the fuel they hold
             "VolFactor": 3.0,  # CRITICAL: Insulation thickness triples the volume
             "Carbon": 0.0,
             "Machinery": 18.0, # HEAVIER than Diesel: Stack + Compressors + Humidifiers + Radiators
@@ -116,7 +116,7 @@ class FuelConfig:
         "Ammonia (Combustion)": {
             "LHV": 18.6,       # Low energy density
             "Density": 682.0,  # Liquid (-33C)
-            "Efficiency": 0.42,# Ammonia burns slow; slightly lower eff than Diesel
+            "Efficiency": 0.46,# Ammonia burns slow; slightly lower eff than Diesel
             "TankFactor": 1.4, # Type C tanks (Pressure vessels) are heavy steel
             "VolFactor": 1.4,  # Cylindrical tanks waste hull space
             "Carbon": 0.0,     # Zero Carbon molecule
@@ -130,7 +130,7 @@ class FuelConfig:
             "TankFactor": 1.0, # "Fuel" mass is the battery mass.
             "VolFactor": 1.0,  # Packs are modular blocks
             "Carbon": 0.0,
-            "Machinery": 3.0,  # Electric Motors are incredibly light
+            "Machinery": 8.0,  # Electric Motors are incredibly light
             "IsNuclear": False
         }
     }
@@ -180,7 +180,7 @@ class ShipConfig:
             "Outfit_Intercept": 0.45, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.60,
             "Design_Type": "Volume",
-            "Profile_Factor": 1.60,
+            "Profile_Factor": 1.40,
             "Cargo_Density": 0.0,
             "EEDI_a": 174.22, "EEDI_c": 0.201, "EEDI_Enabled": True, "EEDI_Type": "DWT",
             "CII_a": 1984.0, "CII_c": 0.489, "CII_Type": "DWT"
@@ -1027,7 +1027,7 @@ class ShipDesViewWidget(QWidget):
 
         range_group.setLayout(range_layout)
         left_col.addWidget(range_group)
-
+        
         comp_group = QGroupBox("Competitive Analysis (Battle Mode)")
         comp_layout = QGridLayout()
         
@@ -1043,37 +1043,56 @@ class ShipDesViewWidget(QWidget):
         
         comp_layout.addWidget(self.list_battle_engines, 1, 0, 1, 2)
 
-        comp_layout.addWidget(QLabel("Speed Range (knots):"), 2, 0)
+        # --- NEW: Configurable X-Axis (Input) ---
+        comp_layout.addWidget(QLabel("X-Axis (Input):"), 2, 0)
+        self.combo_battle_x = QComboBox()
+        self.combo_battle_x.addItems(self.param_list) # Reuses your RANGE_DEFAULTS keys
+        comp_layout.addWidget(self.combo_battle_x, 2, 1)
+
+        # Configurable Range Setup
+        range_layout = QHBoxLayout()
+        self.edit_battle_start = QLineEdit()
+        self.edit_battle_start.setFixedWidth(50)
+        self.edit_battle_end = QLineEdit()
+        self.edit_battle_end.setFixedWidth(50)
+        self.edit_battle_steps = QLineEdit() 
+        self.edit_battle_steps.setFixedWidth(40)
         
-        speed_layout = QHBoxLayout()
-        self.edit_comp_start = QLineEdit("14.0")
-        self.edit_comp_start.setFixedWidth(40)
-        self.edit_comp_end = QLineEdit("24.0")
-        self.edit_comp_end.setFixedWidth(40)
-        self.edit_comp_steps = QLineEdit("10") 
-        self.edit_comp_steps.setFixedWidth(30)
-        
-        speed_layout.addWidget(QLabel("Start:"))
-        speed_layout.addWidget(self.edit_comp_start)
-        speed_layout.addWidget(QLabel("End:"))
-        speed_layout.addWidget(self.edit_comp_end)
-        speed_layout.addWidget(QLabel("Steps:"))
-        speed_layout.addWidget(self.edit_comp_steps)
-        
-        comp_layout.addLayout(speed_layout, 2, 1)
+        range_layout.addWidget(QLabel("Start:")); range_layout.addWidget(self.edit_battle_start)
+        range_layout.addWidget(QLabel("End:")); range_layout.addWidget(self.edit_battle_end)
+        range_layout.addWidget(QLabel("Steps:")); range_layout.addWidget(self.edit_battle_steps)
+        comp_layout.addLayout(range_layout, 3, 0, 1, 2)
+
+        # Connect the auto-fill defaults for the selected X-Axis variable
+        self.combo_battle_x.currentTextChanged.connect(
+            lambda: self._apply_range_defaults(self.combo_battle_x, 
+                                               self.edit_battle_start, 
+                                               self.edit_battle_end, 
+                                               self.edit_battle_steps))
+        self._apply_range_defaults(self.combo_battle_x, self.edit_battle_start, self.edit_battle_end, self.edit_battle_steps)
+
+        # --- NEW: Configurable Y-Axis (Output) ---
+        comp_layout.addWidget(QLabel("Y-Axis (Output):"), 4, 0)
+        self.combo_battle_y = QComboBox()
+        self.combo_battle_y.addItems([
+            "RFR($/tonne or $/TEU)", "BuildCost(M$)", "AnnualFuelCost(M$)",
+            "Lbp(m)", "B(m)", "D(m)", "T(m)", "CB", "Displacement(t)",
+            "CargoDW(t)", "TotalDW(t)", "ServicePower(kW)", "EEDI(gCO2/t.nm)"
+        ])
+        comp_layout.addWidget(self.combo_battle_y, 4, 1)
 
         self.btn_run_battle = QPushButton("Run Comparison Battle")
         self.btn_run_battle.setStyleSheet("font-weight: bold; color: darkblue;")
         self.btn_run_battle.clicked.connect(self.on_run_battle)
         self.btn_export_battle = QPushButton("Export Battle CSV")
-        self.btn_export_battle.setEnabled(False) # Disabled until a battle is run
+        self.btn_export_battle.setEnabled(False) 
         self.btn_export_battle.clicked.connect(self.on_export_battle_csv)
 
         battle_btn_layout = QHBoxLayout()
         battle_btn_layout.addWidget(self.btn_run_battle)
         battle_btn_layout.addWidget(self.btn_export_battle)
         
-        comp_layout.addLayout(battle_btn_layout, 3, 0, 1, 2)
+        comp_layout.addLayout(battle_btn_layout, 5, 0, 1, 2)
 
         comp_group.setLayout(comp_layout)
         left_col.addWidget(comp_group)
@@ -1112,6 +1131,7 @@ class ShipDesViewWidget(QWidget):
         
         self.combo_ship.currentIndexChanged.connect(self._reset_dlg)
         self.combo_engine.currentIndexChanged.connect(self._reset_dlg) 
+        self.combo_engine.currentTextChanged.connect(self._on_fuel_changed)
         
         self.check_econom.toggled.connect(self.on_check_econom) 
         self.check_lbratio.toggled.connect(self.on_check_lbratio) 
@@ -1127,6 +1147,12 @@ class ShipDesViewWidget(QWidget):
         self._update_data_to_ui() 
         self._reset_dlg()
         
+    def _on_fuel_changed(self, fuel_name):
+        """Auto-populates the LHV field when a new fuel is selected."""
+        fuel_data = FuelConfig.get(fuel_name)
+        if fuel_data["LHV"] > 0:
+            self.edit_lhv.setText(str(fuel_data["LHV"]))
+
     def _update_ui_to_data(self):
         """Port of UpdateData(TRUE) - Pulls values from UI to members"""
 
@@ -1423,7 +1449,9 @@ class ShipDesViewWidget(QWidget):
                 vol_fuel = (self.calculated_fuel_mass * 1000.0) / fuel_data["Density"] * fuel_data["VolFactor"]
         
         vol_mach = (self.P2 * 0.7457) * 0.4 
-        vol_stores = self.W1 * 0.05 
+        # Stores volume should scale with Lightship Mass (M1+M2+M3), not Cargo DWT (W1)
+        lightship = getattr(self, 'M1', 0) + getattr(self, 'M2', 0) + getattr(self, 'M3', 0)
+        vol_stores = lightship * 0.05
         
         vol_req = vol_cargo + vol_fuel + vol_mach + vol_stores
         
@@ -1461,7 +1489,10 @@ class ShipDesViewWidget(QWidget):
                 self.D *= expansion_factor
 
             C_safe = self.C if self.C > 0 else 0.8
-            self.T = self.D * 0.7 
+            if self.Kstype == 1: # Tanker
+                self.T = self.D * 0.78
+            else:
+                self.T = self.D * 0.70
 
             power_ok = self._power()
             
@@ -1509,7 +1540,7 @@ class ShipDesViewWidget(QWidget):
         """Port of OnButtonCal"""
 
         keys_to_reset = ['M_aux_mach', 'M_aux_outfit', 'W_aux_fuel', 
-                         'aux_cost_annual', 'calculated_fuel_mass']
+                         'aux_cost_annual', 'calculated_fuel_mass', '_esd_applied']
         for k in keys_to_reset:
             if hasattr(self, k):
                 delattr(self, k)
@@ -1578,7 +1609,7 @@ class ShipDesViewWidget(QWidget):
                         L = L3 + (self.W - W2) * (self.L1 - L3) / (W1 - W2)
                         self.L1 = L; J = 0.25 * J; Y += 1; Z += 2
                 
-                if self.L1 == 0: self.L1 = 1e-9 # Avoid division by zero
+                if self.L1 <= 0: self.L1 = 1e-9 # Prevent negative length leading to complex numbers
                 vosl = self.V / (math.sqrt(self.L1) if self.L1 > 0 else 1e-9)
                 
                 if self.Kstype == 1: # Tanker
@@ -1619,6 +1650,24 @@ class ShipDesViewWidget(QWidget):
                         self.T = 0.7 * self.D
                         if not self._freeboard(): return
                         self.T = self.D - self.F5
+                elif self.Kstype == 4:  # Container Ship
+                    if self.m_Lbratio: self.B = self.L1 / self.m_LbratioV
+                    elif self.m_Bvalue: self.B = self.m_BvalueV
+                    else:
+                        if self.L1 <= self.Lb05: self.B = self.L1 / (self.Lb01 + self.Lb02 * (self.L1 - self.Lb03))
+                        else: self.B = self.L1 / self.Lb04
+                    
+                    # --- ADDED: Container ships need a block coefficient ---
+                    if self.m_Cbvalue: self.C = self.m_CbvalueV
+                    else:
+                        if vosl < self.Cb35: self.C = self.Cb31 - self.Cb32 * vosl
+                        else: self.C = self.Cb33 - self.Cb34 * vosl
+
+                    # Container ships: D/L ~ 1/13.5, T/D ~ 0.72
+                    self.D = self.L1 / 13.5
+                    self.T = 0.72 * self.D
+                    if not self._freeboard(): return
+                    self.T = self.D - self.F5
                 else: # Cargo vessel
                     if self.m_Lbratio: self.B = self.L1 / self.m_LbratioV
                     elif self.m_Bvalue: self.B = self.m_BvalueV
@@ -1727,12 +1776,6 @@ class ShipDesViewWidget(QWidget):
              self.m_Results += "\n!!! CRITICAL WARNING !!!\n"
              self.m_Results += "Auxiliary weight > Cargo Capacity.\n"
              self.m_Results += "Increase Ship Dimensions or decrease Aux Load.\n"
-
-
-        self._apply_resistance_breakdown()
-
-        if not self._mass(): return
-        self._mass()
 
         if self.m_Econom: 
             if not self._cost(): return
@@ -2182,19 +2225,21 @@ class ShipDesViewWidget(QWidget):
     
     def on_run_battle(self):
         """
-        Runs the 'Battle Mode': Plots RFR vs Speed for any number of selected engines.
+        Runs the 'Battle Mode': Plots a selected output against a selected input for any number of engines.
         """
         if FigureCanvas is None:
             self._show_error("Matplotlib not found.")
             return
 
         try:
-            start_speed = float(self.edit_comp_start.text())
-            end_speed = float(self.edit_comp_end.text())
-            steps = int(self.edit_comp_steps.text())
+            param_x = self.combo_battle_x.currentText()
+            param_y = self.combo_battle_y.currentText()
+            start_val = float(self.edit_battle_start.text())
+            end_val = float(self.edit_battle_end.text())
+            steps = int(self.edit_battle_steps.text())
             if steps < 2: raise ValueError("Steps must be >= 2")
         except ValueError:
-            self._show_error("Invalid speed range inputs.")
+            self._show_error("Invalid range inputs. Ensure start, end, and steps are valid numbers.")
             return
             
         selected_items = self.list_battle_engines.selectedItems()
@@ -2204,7 +2249,7 @@ class ShipDesViewWidget(QWidget):
 
         selected_engines = [item.text() for item in selected_items]
         
-        # --- NEW: Launch the Configuration Dialog ---
+        # Launch the Configuration Dialog for fuel prices / taxes
         config_dlg = BattleFuelConfigDialog(
             selected_engines, 
             self.edit_fuel.text(), 
@@ -2217,27 +2262,95 @@ class ShipDesViewWidget(QWidget):
             
         engine_configs = config_dlg.result_data
 
+        # Save original UI state to restore later
         original_ui_state = {
             'engine_idx': self.combo_engine.currentIndex(),
             'speed': self.edit_speed.text(),
+            'weight': self.edit_weight.text(),
+            'teu': self.edit_teu.text(),
             'fuel_price': self.edit_fuel.text(),
             'carbon_tax': self.edit_ctax_rate.text(),
+            'reactor_cost': self.edit_reactor_cost.text(),
+            'range': self.edit_range.text(),
+            'interest': self.edit_interest.text(),
+            'lbratio_v': self.edit_lbratio.text(),
+            'bvalue_v': self.edit_bvalue.text(),
+            'btratio_v': self.edit_btratio.text(),
+            'cbvalue_v': self.edit_cbvalue.text(),
             'ignspd': self.ignspd, 'ignpth': self.ignpth,
-            'econom': self.check_econom.isChecked()
+            'econom': self.check_econom.isChecked(),
+            'cargo_r': self.radio_cargo.isChecked(),
+            'ship_r': self.radio_ship.isChecked(),
+            'teu_r': self.radio_teu.isChecked(),
+            'lbratio_c': self.check_lbratio.isChecked(),
+            'bvalue_c': self.check_bvalue.isChecked(),
+            'btratio_c': self.check_btratio.isChecked(),
+            'cbvalue_c': self.check_cbvalue.isChecked(),
+            'ctax_c': self.check_carbon_tax.isChecked()
         }
         
         self.ignspd = True; self.ignpth = True 
         self.check_econom.setChecked(True)     
         
-        speeds = np.linspace(start_speed, end_speed, steps)
+        x_values = np.linspace(start_val, end_val, steps)
         battle_results = {}
 
         self.is_batch_mode = True
         total_skipped = 0
 
+        # Helpers for setting and getting dynamic parameters
+        def set_param_value(name, val):
+            if name == "Speed(knts)": self.edit_speed.setText(str(val))
+            elif name == "Cargo deadweight(t)": self.edit_weight.setText(str(val)); self.radio_cargo.setChecked(True)
+            elif name == "TEU Capacity": self.edit_teu.setText(str(val)); self.radio_teu.setChecked(True)
+            elif name == "L/B Ratio": self.edit_lbratio.setText(str(val)); self.check_lbratio.setChecked(True)
+            elif name == "B(m)": self.edit_bvalue.setText(str(val)); self.check_bvalue.setChecked(True)
+            elif name == "B/T Ratio": self.edit_btratio.setText(str(val)); self.check_btratio.setChecked(True)
+            elif name == "Block Co.": self.edit_cbvalue.setText(str(val)); self.check_cbvalue.setChecked(True)
+            elif name == "Reactor Cost ($/kW)": self.edit_reactor_cost.setText(str(val))
+            elif name == "Range (nm)": self.edit_range.setText(str(val))
+            elif name == "Fuel Cost ($/t)": self.edit_fuel.setText(str(val))
+            elif name == "Interest Rate (%)": self.edit_interest.setText(str(val))
+            elif name == "Carbon Tax ($/t)": self.edit_ctax_rate.setText(str(val)); self.check_carbon_tax.setChecked(True)
+
+        def get_result_value(name):
+            if not self.CalculatedOk: return np.nan
+            is_econom = self.check_econom.isChecked()
+            is_teu = self.radio_teu.isChecked()
+            
+            if name == "RFR($/tonne or $/TEU)":
+                if not is_econom: return np.nan
+                return self.Rf * self.m_TEU_Avg_Weight if is_teu else self.Rf
+            elif name == "Lbp(m)": return self.L1
+            elif name == "B(m)": return self.B
+            elif name == "D(m)": return self.D
+            elif name == "T(m)": return self.T
+            elif name == "CB": return self.C
+            elif name == "Displacement(t)": return self.M
+            elif name == "CargoDW(t)": return self.W1
+            elif name == "TotalDW(t)": return self.W5
+            elif name == "ServicePower(kW)": return 0.7457 * self.P1
+            elif name == "InstalledPower(kW)": return 0.7457 * self.P2
+            elif name == "BuildCost(M$)": return self.S if is_econom else np.nan
+            elif name == "AnnualFuelCost(M$)": return self.H7 / 1e6 if is_econom else np.nan
+            elif name == "EEDI(gCO2/t.nm)":
+                try:
+                    fuel_data = FuelConfig.get(self.combo_engine.currentText())
+                    lhv = self.m_LHV if self.m_LHV > 0 else 42.7
+                    eff = fuel_data["Efficiency"]
+                    sfc_g_kwh = 3600.0 / (lhv * eff)
+                    capacity = self.W1 if self.W1 > 1.0 else 1.0
+                    p_me = 0.75 * (self.P2 * 0.7457)
+                    cf = fuel_data["Carbon"]
+                    return (p_me * cf * sfc_g_kwh) / (capacity * self.V)
+                except:
+                    return np.nan
+            return 0.0
+
         try:
             self.text_results.append(f"\n--- MULTI-ENGINE BATTLE ---")
             self.text_results.append(f"Comparing: {', '.join(selected_engines)}")
+            self.text_results.append(f"X-Axis: {param_x} | Y-Axis: {param_y}")
             
             for engine_name in selected_engines:
                 self.text_results.append(f"Calculating {engine_name}...")
@@ -2250,47 +2363,70 @@ class ShipDesViewWidget(QWidget):
                 self.edit_fuel.setText(str(custom_price))
                 self.edit_ctax_rate.setText(str(custom_tax))
                 
-                QApplication.processEvents() # Keep UI responsive
+                QApplication.processEvents() 
                 
-                valid_speeds = []
-                rfr_values = []
+                valid_x = []
+                valid_y = []
                 
-                for v in speeds:
-                    self.edit_speed.setText(str(v))
+                for val in x_values:
+                    set_param_value(param_x, val)
                     self.on_calculate()
                     
                     if self.CalculatedOk:
-                        val = self.Rf * self.m_TEU_Avg_Weight if self.radio_teu.isChecked() else self.Rf
-                        rfr_values.append(val)
-                        valid_speeds.append(v)
+                        res = get_result_value(param_y)
+                        if not np.isnan(res):
+                            valid_x.append(val)
+                            valid_y.append(res)
                     else:
                         total_skipped += 1
                 
-                battle_results[engine_name] = (valid_speeds, rfr_values)
+                battle_results[engine_name] = (valid_x, valid_y)
 
+            # Store metadata for plotting and exporting
             self.last_battle_results = battle_results
+            self.battle_x_label = param_x
+            self.battle_y_label = param_y
             self.btn_export_battle.setEnabled(True)
 
             self._show_battle_graph(battle_results)
             self.text_results.append("Battle Complete.\n")
             
             if total_skipped > 0:
-                summary_msg = f"{total_skipped} calculation(s) were skipped due to physical constraints (e.g., propeller pitch or speed limits)."
+                summary_msg = f"{total_skipped} calculation(s) were skipped due to physical constraints."
                 self.text_results.append(f"Note: {summary_msg}")
                 QMessageBox.warning(self, "Calculations Skipped", summary_msg)
 
         except Exception as e:
-            self.is_batch_mode = False 
             self._show_error(f"Error during comparison: {e}")
             
         finally:
             self.is_batch_mode = False 
             
+            # Restore UI state completely
             self.combo_engine.setCurrentIndex(original_ui_state['engine_idx'])
             self.edit_speed.setText(original_ui_state['speed'])
+            self.edit_weight.setText(original_ui_state['weight'])
+            self.edit_teu.setText(original_ui_state['teu'])
             self.edit_fuel.setText(original_ui_state['fuel_price'])
             self.edit_ctax_rate.setText(original_ui_state['carbon_tax'])
+            self.edit_reactor_cost.setText(original_ui_state['reactor_cost'])
+            self.edit_range.setText(original_ui_state['range'])
+            self.edit_interest.setText(original_ui_state['interest'])
+            self.edit_lbratio.setText(original_ui_state['lbratio_v'])
+            self.edit_bvalue.setText(original_ui_state['bvalue_v'])
+            self.edit_btratio.setText(original_ui_state['btratio_v'])
+            self.edit_cbvalue.setText(original_ui_state['cbvalue_v'])
+            
             self.check_econom.setChecked(original_ui_state['econom'])
+            self.radio_cargo.setChecked(original_ui_state['cargo_r'])
+            self.radio_ship.setChecked(original_ui_state['ship_r'])
+            self.radio_teu.setChecked(original_ui_state['teu_r'])
+            self.check_lbratio.setChecked(original_ui_state['lbratio_c'])
+            self.check_bvalue.setChecked(original_ui_state['bvalue_c'])
+            self.check_btratio.setChecked(original_ui_state['btratio_c'])
+            self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
+            self.check_carbon_tax.setChecked(original_ui_state['ctax_c'])
+
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             self._reset_dlg()
@@ -2313,7 +2449,6 @@ class ShipDesViewWidget(QWidget):
         ax = self.battle_ax
         ax.clear()
         
-        # A list of distinct markers to cycle through so overlapping lines are easier to read
         markers = ['o', 's', '^', 'D', 'v', 'p', '*', 'X', 'h', '+']
         
         for i, (engine_name, (x_data, y_data)) in enumerate(results_dict.items()):
@@ -2324,10 +2459,16 @@ class ShipDesViewWidget(QWidget):
         ax.grid(True)
         ax.legend()
         
-        ylabel = "RFR ($/TEU)" if self.radio_teu.isChecked() else "RFR ($/tonne)"
-        ax.set_xlabel("Ship Speed (knots)")
-        ax.set_ylabel(ylabel)
-        ax.set_title("Economic Battle: Multi-Engine Comparison")
+        # Apply dynamic labels stored during on_run_battle
+        x_label = getattr(self, 'battle_x_label', "Input Variable")
+        y_label = getattr(self, 'battle_y_label', "Output Variable")
+        
+        if y_label == "RFR($/tonne or $/TEU)":
+            y_label = "RFR ($/TEU)" if self.radio_teu.isChecked() else "RFR ($/tonne)"
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+        ax.set_title(f"Economic Battle: {y_label} vs {x_label}")
         
         self.battle_canvas.draw()
         self.battle_window.show()
@@ -2351,24 +2492,35 @@ class ShipDesViewWidget(QWidget):
                 writer = csv.writer(f)
                 
                 engines = list(self.last_battle_results.keys())
-                # Assume all engines ran the same speed increments, so grab the speeds from the first one
-                speeds = self.last_battle_results[engines[0]][0]
                 
-                # Write header row
-                unit = "$/TEU" if self.radio_teu.isChecked() else "$/tonne"
-                header = ["Speed (knots)"] + [f"{eng} ({unit})" for eng in engines]
+                # Retrieve the longest X-array in case some engines failed early
+                x_values = []
+                for eng in engines:
+                    if len(self.last_battle_results[eng][0]) > len(x_values):
+                        x_values = self.last_battle_results[eng][0]
+                
+                x_label = getattr(self, 'battle_x_label', "Input Variable")
+                y_label = getattr(self, 'battle_y_label', "Output Variable")
+                if y_label == "RFR($/tonne or $/TEU)":
+                    unit = "$/TEU" if self.radio_teu.isChecked() else "$/tonne"
+                    y_label = f"RFR ({unit})"
+                
+                header = [x_label] + [f"{eng} - {y_label}" for eng in engines]
                 writer.writerow(header)
                 
-                # Write data rows
-                for i in range(len(speeds)):
-                    row = [f"{speeds[i]:.2f}"]
+                for i in range(len(x_values)):
+                    row = [f"{x_values[i]:.4f}"]
                     for engine in engines:
-                        rfr_list = self.last_battle_results[engine][1]
-                        # Ensure we don't go out of bounds if an engine failed early
-                        if i < len(rfr_list):
-                            row.append(f"{rfr_list[i]:.4f}")
-                        else:
+                        eng_x = self.last_battle_results[engine][0]
+                        eng_y = self.last_battle_results[engine][1]
+                        
+                        # Match X values exactly to handle differing failure points
+                        try:
+                            idx = eng_x.index(x_values[i])
+                            row.append(f"{eng_y[idx]:.4f}")
+                        except ValueError:
                             row.append("N/A")
+                            
                     writer.writerow(row)
                     
             QMessageBox.information(self, "Export Complete", f"Successfully saved battle results to:\n{fileName}")
@@ -2484,6 +2636,10 @@ class ShipDesViewWidget(QWidget):
         self.H1 = H0 * self.S 
         H3 = H3 * self.S 
 
+        self.annual_opex = self.m_H2_Crew + H3 + self.m_H4_Port + self.m_H5_Stores + self.m_H6_Overhead + self.m_H8_Other
+        self.annual_fuel_cost_only = 0.0
+        self.annual_carbon_tax = 0.0
+
         engine_name = self.combo_engine.currentText()
         fuel_data = FuelConfig.get(engine_name)
         
@@ -2493,6 +2649,7 @@ class ShipDesViewWidget(QWidget):
             repay_years_safe = self.N if self.N > 0 else 1e-9
             annual_decom_fund = (self.m_Decom_Cost * 1.0e6) / repay_years_safe 
             self.H7 = annual_core_cost + annual_decom_fund
+            self.annual_fuel_cost_only = annual_core_cost
             
         else:         
             service_power_kw = self.P1 * 0.7457
@@ -2503,16 +2660,19 @@ class ShipDesViewWidget(QWidget):
                 annual_fuel_tonnes = 0
             
             annual_fuel_tonnes *= self.m_Power_Factor
-            
-            self.H7 = annual_fuel_tonnes * self.F8
+
+            self.annual_fuel_cost_only = annual_fuel_tonnes * self.F8
+            self.H7 = self.annual_fuel_cost_only
             
             if self.check_carbon_tax.isChecked():
                 co2_tonnes = annual_fuel_tonnes * fuel_data["Carbon"]
                 annual_tax_bill = co2_tonnes * self.m_CarbonTax
+                self.annual_carbon_tax = annual_tax_bill 
                 self.H7 += annual_tax_bill
 
         if hasattr(self, 'aux_cost_annual'):
             self.H7 += self.aux_cost_annual
+            self.annual_fuel_cost_only += self.aux_cost_annual
         
         self.annual_premium_income = 0.0
         try:
@@ -2592,9 +2752,12 @@ class ShipDesViewWidget(QWidget):
         self.res_wave = self.res_total - calc_sum
         if self.res_wave < 0:
             self.res_wave = 0.0
-            self.res_friction = self.res_total * 0.70 
+            # Do not artificially override res_friction to maintain integrity
         
         
+        if getattr(self, '_esd_applied', False):
+            return # Prevent compounding ESD reductions on multiple passes
+
         self.p_savings_kw = 0.0
         self.esd_log = []
         
@@ -2645,6 +2808,8 @@ class ShipDesViewWidget(QWidget):
         
         self.P2_Original = self.P2
         self.P2 -= savings_bhp
+        
+        self._esd_applied = True
 
     def _mass(self):
         """Port of Sub_mass - FIXED to restore legacy C++ math for standard engines"""
@@ -2737,7 +2902,7 @@ class ShipDesViewWidget(QWidget):
         if hasattr(self, 'W_aux_fuel'):
             W3 += self.W_aux_fuel # Add generator fuel to total fuel weight
 
-        W4 = 13.0 * (self.M ** 0.35) 
+        W4 = 13.0 * (abs(self.M) ** 0.35)
         
         self.W1 = self.M - M0 - W3 - W4 # Cargo deadweight
         self.W5 = self.M - M0 # Total deadweight
@@ -2761,7 +2926,8 @@ class ShipDesViewWidget(QWidget):
         self.lcb_optimal = 8.8 * (self.froude_number - 0.18)
         
         V0 = self.V / math.sqrt(3.28 * L1_safe)
-        W0 = (self.L1 * self.B * self.T * self.C) ** (1/3)
+        hull_vol = self.L1 * self.B * self.T * self.C
+        W0 = (abs(hull_vol)) ** (1/3)
         if W0 == 0: W0 = 1e-9
         
         if self.dbgmd and self.m_Cargo == 0:
@@ -2795,7 +2961,7 @@ class ShipDesViewWidget(QWidget):
         if self.L1 >= 122.0: R8 = R7 - 0.1 * (self.L1 - 122.0) / (self.L1 + 66.0)
         else: R8 = R7 + 1.8e-4 * ((122.0 - self.L1) ** 1.3)
             
-        M5 = self.M * 2204.0 / 2240.0
+        M5 = abs(self.M) * 2204.0 / 2240.0
         self.P = R8 * (self.V ** 3) * (M5 ** (2/3)) / 427.1
         
         D5 = self.Pdt * self.T; N5 = self.N2 / 60.0
@@ -3571,14 +3737,19 @@ class ShipDesViewWidget(QWidget):
                 if opt['oirate']: output_lines.append(f"   Interest rate (%%) = {self.I:6.2f}")
                 if opt['oreyear']: output_lines.append(f"   Repayment years = {self.N:3d}")
                 if opt['obcost']: output_lines.append(f"   Build cost = {self.S:5.2f}(M)")
-                if opt['oacc']: output_lines.append(f"   Annual capital charges = {self.H1:5.2f}")
+                if opt['oacc']: 
+                    output_lines.append(f"   Annual capital charges = {self.H1:,.2f}")
+                    output_lines.append(f"   Annual OPEX = {self.annual_opex:,.2f}")
                 
                 if self.Ketype == 4:
-                    if opt['oafc']: output_lines.append(f"   Annual Core/Decom Cost = {self.H7:5.2f}")
+                    if opt['oafc']: 
+                        output_lines.append(f"   Annual Core/Decom Cost = {self.H7:,.2f}")
                 else:
-                    if opt['oafc']: output_lines.append(f"   Annual fuel costs = {self.H7:5.2f}")
-                    if self.check_carbon_tax.isChecked():
-                         output_lines.append(f"   (Includes Carbon Tax @ {self.m_CarbonTax} $/tCO2)")
+                    if opt['oafc']: 
+                        output_lines.append(f"   Annual fuel costs = {self.annual_fuel_cost_only:,.2f}")
+                        if self.check_carbon_tax.isChecked():
+                            output_lines.append(f"   Annual carbon taxes = {self.annual_carbon_tax:,.2f}")
+                            output_lines.append(f"   Total Fuel + Tax = {self.H7:,.2f}")
                 
                 if opt['orfr']:
                     if self.design_mode == 2: # TEU Mode

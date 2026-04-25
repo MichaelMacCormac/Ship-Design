@@ -8,7 +8,7 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QLineEdit, 
     QCheckBox, QDialogButtonBox, QGroupBox, QLabel,
-    QHBoxLayout, QMessageBox
+    QHBoxLayout, QMessageBox, QScrollArea, QWidget
 )
 
 class ModifyDialog(QDialog):
@@ -53,7 +53,19 @@ class ModifyDialog(QDialog):
         }
         
         # --- Create UI Controls ---
-        layout = QVBoxLayout()
+        # 1. Main layout for the entire dialog window
+        main_layout = QVBoxLayout(self)
+        
+        # 2. Create the scrolling area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True) # Allows content to expand
+        scroll_area.setStyleSheet("QScrollArea { border: none; }") # Optional: makes it look cleaner
+        
+        # 3. Create a container widget to hold everything
+        content_widget = QWidget()
+        
+        # 4. Attach your old 'layout' to this container widget instead of the dialog
+        layout = QVBoxLayout(content_widget)
 
         self.note_label = QLabel(self.data['Note']) #
         layout.addWidget(self.note_label)
@@ -179,7 +191,11 @@ class ModifyDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
         
-        self.setLayout(layout)
+        # 5. Pack everything up into the scroll area
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
+        
+        # (self.setLayout is no longer needed because we passed 'self' to main_layout)
 
     def set_data(self, data):
         """
