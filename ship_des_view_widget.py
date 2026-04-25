@@ -920,8 +920,12 @@ class ShipDesViewWidget(QWidget):
         self.check_cii.setToolTip("Calculates Carbon Intensity Indicator (A-E Rating) based on operational profile.")
         self.check_cii.toggled.connect(self._reset_dlg)
 
+        self.check_fuel_vol = QCheckBox("Show Fuel Volume")
+        self.check_fuel_vol.setToolTip("Displays the required fuel volume and % of internal hull volume.")
+
         tax_layout.addWidget(self.check_eedi)
         tax_layout.addWidget(self.check_cii)
+        tax_layout.addWidget(self.check_fuel_vol)
 
         eco_layout.addRow(eco_grid)
         eco_group.setLayout(eco_layout)
@@ -1444,9 +1448,16 @@ class ShipDesViewWidget(QWidget):
             vol_cargo *= 1.10 # Stowage Factor
 
         vol_fuel = 0.0
-        if hasattr(self, 'calculated_fuel_mass') and self.calculated_fuel_mass > 0:
-            if fuel_data["Density"] > 0:
-                vol_fuel = (self.calculated_fuel_mass * 1000.0) / fuel_data["Density"] * fuel_data["VolFactor"]
+        # Volume must be based on RAW fuel mass, not tank-inclusive mass.
+        # TankFactor handles tank STEEL MASS; VolFactor handles tank+insulation VOLUME.
+        # Using calculated_fuel_mass here would treat the tank's mass as if it were
+        # additional liquid fuel, inflating volume by ~8x for hydrogen.
+        raw_mass = getattr(self, 'raw_fuel_mass', None)
+        if raw_mass is None:  # backward-compat fallback if _mass() hasn't run yet
+            tf = fuel_data.get("TankFactor", 1.0) or 1.0
+            raw_mass = getattr(self, 'calculated_fuel_mass', 0.0) / tf
+        if raw_mass > 0 and fuel_data["Density"] > 0:
+            vol_fuel = (raw_mass * 1000.0) / fuel_data["Density"] * fuel_data["VolFactor"]
         
         vol_mach = (self.P2 * 0.7457) * 0.4 
         # Stores volume should scale with Lightship Mass (M1+M2+M3), not Cargo DWT (W1)
@@ -1479,53 +1490,70 @@ class ShipDesViewWidget(QWidget):
         target_payload = self.W 
         L_orig, B_orig, D_orig = self.L1, self.B, self.D
         
-        for i in range(50):
-            expansion_factor = 1.02 # Expand by 2% per step
-            self.L1 *= expansion_factor
-            
-            if self.L1 > 0:
-                if self.m_Lbratio: self.B = self.L1 / self.m_LbratioV
-                else: self.B *= expansion_factor
-                self.D *= expansion_factor
+        # Suppress speed/pitch popups during expansion — we expect transient out-of-range
+        # conditions while iterating toward a valid hull. Restore on exit.
+        prev_ignspd, prev_ignpth = self.ignspd, self.ignpth
+        self.ignspd = True
+        self.ignpth = True
+        try:
+            for i in range(50):
+                # Use a slightly more aggressive expansion for volume-heavy fuels (H2, NH3)
+                fuel_data_local = FuelConfig.get(self.combo_engine.currentText())
+                expansion_factor = 1.03 if fuel_data_local.get("VolFactor", 1.0) >= 1.5 else 1.02
+                
+                self.L1 *= expansion_factor
+                
+                if self.L1 > 0:
+                    if self.m_Lbratio: self.B = self.L1 / self.m_LbratioV
+                    else: self.B *= expansion_factor
+                    self.D *= expansion_factor
 
-            C_safe = self.C if self.C > 0 else 0.8
-            if self.Kstype == 1: # Tanker
-                self.T = self.D * 0.78
-            else:
-                self.T = self.D * 0.70
+                C_safe = self.C if self.C > 0 else 0.8
+                if self.Kstype == 1:
+                    self.T = self.D * 0.78
+                else:
+                    self.T = self.D * 0.70
 
-            power_ok = self._power()
-            
-            if not power_ok:
-                self.P1 *= (expansion_factor ** 2) 
-                self.P2 *= (expansion_factor ** 2)
-            
-            self._mass() 
-            
-            fuel_mass = self.calculated_fuel_mass if hasattr(self, 'calculated_fuel_mass') else 0
-            new_lightship = (self.M1 + self.M2 + self.M3) * 1.02
-            misc_mass = 13.0 * (self.M ** 0.35) 
-            
-            required_displacement = target_payload + new_lightship + fuel_mass + misc_mass
-            
-            self.M = required_displacement
-            new_T = self.M / (self.L1 * self.B * C_safe * 1.025)
-           
-            if new_T > (self.D * 0.9): 
-                new_T = self.D * 0.9 # Cap draft
-            
-            self.T = new_T
+                power_ok = self._power()
+                
+                if not power_ok:
+                    # Power solver failed at this size — bump installed power as a guess
+                    # and let _mass() recompute fuel from it.
+                    self.P1 *= (expansion_factor ** 2)
+                    self.P2 *= (expansion_factor ** 2)
+                    # Also nudge prop RPM down — large hulls want slower, larger props
+                    self.N2 *= 0.97
+                    self.N1 *= 0.97
+                
+                self._mass()
+                
+                fuel_mass = self.calculated_fuel_mass if hasattr(self, 'calculated_fuel_mass') else 0
+                new_lightship = (self.M1 + self.M2 + self.M3) * 1.02
+                misc_mass = 13.0 * (self.M ** 0.35) 
+                
+                required_displacement = target_payload + new_lightship + fuel_mass + misc_mass
+                
+                self.M = required_displacement
+                new_T = self.M / (self.L1 * self.B * C_safe * 1.025)
+               
+                if new_T > (self.D * 0.9): 
+                    new_T = self.D * 0.9
+                
+                self.T = new_T
 
-            req, avail, ratio = self._get_volume_status()
-            
-            if ratio <= 1.0:
-                self.text_results.append(f"-> Converged at L={self.L1:.1f}m")
-                self.text_results.append(f"-> Draft adjusted to {self.T:.1f}m (New Disp: {int(self.M)}t)")
-                self.W1 = self.M - new_lightship - fuel_mass - misc_mass
-                return True 
+                req, avail, ratio = self._get_volume_status()
+                
+                if ratio <= 1.0:
+                    self.text_results.append(f"-> Converged at L={self.L1:.1f}m")
+                    self.text_results.append(f"-> Draft adjusted to {self.T:.1f}m (New Disp: {int(self.M)}t)")
+                    self.W1 = self.M - new_lightship - fuel_mass - misc_mass
+                    return True 
 
-        self.text_results.append("-> WARNING: Volume expansion limit reached.")
-        return False
+            self.text_results.append("-> WARNING: Volume expansion limit reached.")
+            return False
+        finally:
+            self.ignspd = prev_ignspd
+            self.ignpth = prev_ignpth
 
     def _apply_range_defaults(self, combo, edit_start, edit_end, edit_steps):
         """Helper to auto-fill range fields based on selection."""
@@ -1540,7 +1568,8 @@ class ShipDesViewWidget(QWidget):
         """Port of OnButtonCal"""
 
         keys_to_reset = ['M_aux_mach', 'M_aux_outfit', 'W_aux_fuel', 
-                         'aux_cost_annual', 'calculated_fuel_mass', '_esd_applied']
+                         'aux_cost_annual', 'calculated_fuel_mass', 'raw_fuel_mass',
+                         '_esd_applied']
         for k in keys_to_reset:
             if hasattr(self, k):
                 delattr(self, k)
@@ -1582,8 +1611,7 @@ class ShipDesViewWidget(QWidget):
             W1 = self.W + 2.0 * self.E + 10.0 
             Z = 0; Y = 1; J = 10.0; L3 = 0.0; W2 = 0.0 
             self.Kcount = 0 
-            
-            # Initial L1 guess
+
             if self.Kstype == 1: 
                 self.L1 = self.L111 + self.L112 * ((self.W / self.L113) ** (1/3)) 
             elif self.Kstype == 2: 
@@ -1716,6 +1744,7 @@ class ShipDesViewWidget(QWidget):
                     else:
                         if not self._show_debug_msg(msg): break
             
+
             if self.Kpwrerr != 1: 
                 msg = "The program tried its best but\r\n"
                 msg += "calculation has failed because\r\n"
@@ -1748,16 +1777,29 @@ class ShipDesViewWidget(QWidget):
 
         self._solve_volume_limit()
         
-        if not self._power(): 
-            self.text_results.append("\n[Auto-Correcting Propeller RPM for larger hull...]")
-            self.N2 *= 0.9 # Reduce Prop RPM by 10%
-            self.N1 *= 0.9 # Reduce Engine RPM by 10%
+        retries = 0
+        while not self._power() and retries < 15:
             
-            if not self._power():
-                self.text_results.append("ERROR: Propeller design failed even after adjustment.")
-                self.text_results.append("Try reducing 'Engine RPM' or unchecking 'Prop.dia./T ratio'.")
-                return # Stop to show errors
-
+            if self.Kpwrerr % self.PITCH_LOW == 0:
+                self.text_results.append(f"[Auto-Correcting: Pitch > 1.4. Increasing RPM from {self.N2:.1f} to {self.N2*1.05:.1f}]")
+                self.N2 *= 1.05
+                self.N1 *= 1.05
+                
+            elif self.Kpwrerr % self.PITCH_HIGH == 0:
+                self.text_results.append(f"[Auto-Correcting: Pitch < 0.5. Decreasing RPM from {self.N2:.1f} to {self.N2*0.95:.1f}]")
+                self.N2 *= 0.95
+                self.N1 *= 0.95
+                
+            else:
+                break
+                
+            retries += 1
+            
+        if self.Kpwrerr != 1:
+            self.text_results.append("\nERROR: Propeller design fundamentally failed!")
+            self.text_results.append("The physics engine cannot balance the thrust required for this weight/speed.")
+            self.text_results.append("Try: 1) Reducing Speed, 2) Reducing Range, or 3) Unchecking 'Prop.dia. to T ratio'.")
+            return
         self._apply_resistance_breakdown()
 
         if not self._mass(): return
@@ -1900,6 +1942,7 @@ class ShipDesViewWidget(QWidget):
             'cbvalue_c': self.check_cbvalue.isChecked(),
             'ignspd': self.ignspd,
             'ignpth': self.ignpth,
+            'fuel_vol_c': self.check_fuel_vol.isChecked(),
         }
         self.ignspd = True
         self.ignpth = True
@@ -2012,6 +2055,7 @@ class ShipDesViewWidget(QWidget):
             self.check_bvalue.setChecked(original_ui_state['bvalue_c'])
             self.check_btratio.setChecked(original_ui_state['btratio_c'])
             self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
+            self.check_fuel_vol.setChecked(original_ui_state['fuel_vol_c'])
             
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
@@ -2075,6 +2119,7 @@ class ShipDesViewWidget(QWidget):
             'bvalue_c': self.check_bvalue.isChecked(),
             'btratio_c': self.check_btratio.isChecked(),
             'cbvalue_c': self.check_cbvalue.isChecked(),
+            'fuel_vol_c': self.check_fuel_vol.isChecked(),
         }
         self.ignspd = True; self.ignpth = True
 
@@ -2218,6 +2263,7 @@ class ShipDesViewWidget(QWidget):
             self.check_bvalue.setChecked(original_ui_state['bvalue_c'])
             self.check_btratio.setChecked(original_ui_state['btratio_c'])
             self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
+            self.check_fuel_vol.setChecked(original_ui_state['fuel_vol_c'])
 
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
@@ -2286,7 +2332,8 @@ class ShipDesViewWidget(QWidget):
             'bvalue_c': self.check_bvalue.isChecked(),
             'btratio_c': self.check_btratio.isChecked(),
             'cbvalue_c': self.check_cbvalue.isChecked(),
-            'ctax_c': self.check_carbon_tax.isChecked()
+            'ctax_c': self.check_carbon_tax.isChecked(),
+            'fuel_vol_c': self.check_fuel_vol.isChecked(),
         }
         
         self.ignspd = True; self.ignpth = True 
@@ -2426,6 +2473,7 @@ class ShipDesViewWidget(QWidget):
             self.check_btratio.setChecked(original_ui_state['btratio_c'])
             self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
             self.check_carbon_tax.setChecked(original_ui_state['ctax_c'])
+            self.check_fuel_vol.setChecked(original_ui_state['fuel_vol_c'])
 
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
@@ -2842,46 +2890,25 @@ class ShipDesViewWidget(QWidget):
         is_legacy_diesel = (self.Ketype == 1 or self.Ketype == 2)
         is_legacy_steam = (self.Ketype == 3)
         
+        V_safe = self.V if self.V > 0.1 else 0.1
+        
         installed_power_kw = self.P2 * 0.7457 
 
         if is_legacy_diesel:
-            term1 = 9.38 * ((self.P2 / self.N1) ** 0.84)
-            term2 = K3 * (self.P2 ** 0.7)
-            self.M3 = term1 + term2
-            
-        elif is_legacy_steam:
-            self.M3 = 0.16 * (self.P2 ** 0.89)
-            
-        else:
-            if fuel_data["IsNuclear"]:
-                self.M3 = 2000.0 + (fuel_data["Machinery"] * installed_power_kw * 0.001)
-            else:
-                base_machinery = 200.0 
-                self.M3 = base_machinery + (installed_power_kw * fuel_data["Machinery"] * 0.001)
-
-        M0 = (self.M1 + self.M2 + self.M3) * 1.02 
-
-        if hasattr(self, 'M_aux_mach'):
-            self.M3 += self.M_aux_mach
-            
-        if hasattr(self, 'M_aux_outfit'):
-            self.M2 += self.M_aux_outfit
-        
-        M0 = (self.M1 + self.M2 + self.M3) * 1.02
-
-        V_safe = self.V if self.V > 0.1 else 0.1
-        
-        if is_legacy_diesel:
             self.calculated_fuel_mass = 0.0011 * (0.15 * self.P1 * self.R / V_safe)
+            self.raw_fuel_mass = self.calculated_fuel_mass   # ADDED: legacy has no separate tank multiplier
             W3 = self.calculated_fuel_mass
             
         elif is_legacy_steam:
             self.calculated_fuel_mass = 0.0011 * (0.28 * self.P1 * self.R / V_safe)
+            self.raw_fuel_mass = self.calculated_fuel_mass   # ADDED
             W3 = self.calculated_fuel_mass
             
         else:
             if fuel_data["IsNuclear"]:
-                W3 = 0.0 
+                W3 = 0.0
+                self.raw_fuel_mass = 0.0                     # ADDED
+                self.calculated_fuel_mass = 0.0              # ADDED (was implicitly leftover)
             else:
                 voyage_hours = self.R / V_safe
                 service_power_kw = self.P1 * 0.7457
@@ -2896,8 +2923,19 @@ class ShipDesViewWidget(QWidget):
                 else:
                     raw_fuel_mass_tonnes = 0.0
                 
-                W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]
+                self.raw_fuel_mass = raw_fuel_mass_tonnes    # ADDED: pure fuel only, no tank
+                W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]  # fuel + tank steel mass
                 self.calculated_fuel_mass = W3
+
+        M0 = (self.M1 + self.M2 + self.M3) * 1.02 
+
+        if hasattr(self, 'M_aux_mach'):
+            self.M3 += self.M_aux_mach
+            
+        if hasattr(self, 'M_aux_outfit'):
+            self.M2 += self.M_aux_outfit
+        
+        M0 = (self.M1 + self.M2 + self.M3) * 1.02
 
         if hasattr(self, 'W_aux_fuel'):
             W3 += self.W_aux_fuel # Add generator fuel to total fuel weight
@@ -3687,6 +3725,25 @@ class ShipDesViewWidget(QWidget):
             else:
                 if opt['orange']: output_lines.append(f"   Range(N.M.) = {self.R:8.1f}")
             
+            if self.check_fuel_vol.isChecked() and self.Ketype != 4:
+                fuel_data = FuelConfig.get(self.combo_engine.currentText())
+                if hasattr(self, 'calculated_fuel_mass') and self.calculated_fuel_mass > 0 and fuel_data["Density"] > 0:
+                    
+                    raw_mass = getattr(self, 'raw_fuel_mass', None)
+                    if raw_mass is None:
+                        tf = fuel_data.get("TankFactor", 1.0) or 1.0
+                        raw_mass = self.calculated_fuel_mass / tf
+                    fuel_vol_m3 = (raw_mass * 1000.0) / fuel_data["Density"]
+                    fuel_vol_m3 *= fuel_data["VolFactor"]
+                    
+                    hull_vol = self.L1 * self.B * self.D * self.C
+                    
+                    if hull_vol > 0:
+                        vol_pct = (fuel_vol_m3 / hull_vol) * 100.0
+                        output_lines.append(f"   Fuel Volume = {fuel_vol_m3:,.1f} m³ ({vol_pct:.2f}% of hull vol)")
+                    else:
+                        output_lines.append(f"   Fuel Volume = {fuel_vol_m3:,.1f} m³")
+
             if opt['oerpm']: output_lines.append(f"   Engine RPM = {self.N1:6.1f}")
             if opt['oprpm']: output_lines.append(f"   Propeller RPM = {self.N2:6.1f}")
             if opt['ospower']: output_lines.append(f"   Service power = {int(self.P1 + 0.5):6d} BHP / {int(0.7457 * self.P1 + 0.5):6d} KW")
