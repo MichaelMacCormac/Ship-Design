@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QMainWindow, QDialog
 from PySide6.QtGui import QAction
 
 # Import our new Python-based view and dialogs
-from ship_des_view_widget import ShipDesViewWidget
+from ship_des_view_widget_holtrop import ShipDesViewWidget
 from dialog_about import AboutDialog 
 from dialog_readme import ReadmeDialog
 
