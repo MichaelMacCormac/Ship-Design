@@ -13,14 +13,85 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qtagg import (
+        FigureCanvasQTAgg as FigureCanvas,
+        NavigationToolbar2QT as NavigationToolbar,
+    )
     from matplotlib.figure import Figure
     from mpl_toolkits.mplot3d import Axes3D 
 except ImportError:
     print("Matplotlib not found. Plotting will be disabled.")
     print("Please install it: pip install matplotlib")
     FigureCanvas = None
+    NavigationToolbar = None
     Figure = None
+
+
+# Pretty axis-label lookup — maps internal dropdown keys to publication-quality labels.
+LABEL_MAP = {
+    # X-axis (RANGE_DEFAULTS keys)
+    "Speed(knts)":         "Service Speed (knots)",
+    "Block Co.":           "Block Coefficient (Cb)",
+    "Cargo deadweight(t)": "Cargo Deadweight (t)",
+    "TEU Capacity":        "TEU Capacity",
+    "L/B Ratio":           "Length / Beam Ratio",
+    "B(m)":                "Beam (m)",
+    "B/T Ratio":           "Beam / Draught Ratio",
+    "Reactor Cost ($/kW)": "Reactor Cost ($/kW)",
+    "Range (nm)":          "Range (nautical miles)",
+    "Fuel Cost ($/t)":     "Fuel Cost ($/tonne)",
+    "Interest Rate (%)":   "Interest Rate (%)",
+    "Carbon Tax ($/t)":    "Carbon Tax ($/tonne CO\u2082)",
+    "Sea days/year":       "Sea Days per Year",
+    "Air Lub Eff. (%)":    "Air-Lubrication Saving (%)",
+    "Wind Power Sav. (%)": "Wind-Assist Saving (%)",
+    "Methane Slip (%)":    "Methane Slip (%)",
+    # Y-axis (output combo boxes)
+    "RFR($/tonne or $/TEU)": "Required Freight Rate",
+    "BuildCost(M$)":         "Build Cost (M$)",
+    "AnnualFuelCost(M$)":    "Annual Fuel Cost (M$)",
+    "AnnualCarbonTax(M$)":   "Annual Carbon Tax (M$)",
+    "AnnualisedCAPEX(M$)":   "Annualised CAPEX (M$)",
+    "AnnualOPEX(M$)":        "Annual OPEX (M$)",
+    "Lbp(m)":                "Length B.P. (m)",
+    "D(m)":                  "Depth (m)",
+    "T(m)":                  "Draught (m)",
+    "CB":                    "Block Coefficient (Cb)",
+    "Displacement(t)":       "Displacement (t)",
+    "CargoDW(t)":            "Cargo Deadweight (t)",
+    "TotalDW(t)":            "Total Deadweight (t)",
+    "ServicePower(kW)":      "Service Power (kW)",
+    "InstalledPower(kW)":    "Installed Power (kW)",
+    "EEDI(gCO2/t.nm)":       "Attained EEDI (g CO\u2082 / t\u00B7nm)",
+    "AttainedCII":           "Attained CII",
+    "FuelVolume(m3)":        "Fuel Volume (m\u00B3)",
+    "FuelVol%Hull":          "Fuel Volume / Hull (%)",
+    "VolCargo(m3)":          "Cargo Volume (m\u00B3)",
+    "VolFuel(m3)":           "Fuel Volume (m\u00B3)",
+    "VolMachinery(m3)":      "Machinery Volume (m\u00B3)",
+    "VolStores(m3)":         "Stores Volume (m\u00B3)",
+    "VolUtilisation%":       "Volume Utilisation (%)",
+}
+
+
+def pretty_label(key: str) -> str:
+    """Return a publication-quality label for an internal dropdown key."""
+    return LABEL_MAP.get(key, key)
+
+
+def mpl_safe(s: str) -> str:
+    """Escape characters that trigger matplotlib's mathtext mode.
+
+    matplotlib treats '$...$' as TeX math delimiters: text between two
+    unescaped dollar signs is rendered italic, whitespace is collapsed,
+    and the '$' characters themselves are hidden. Several axis labels
+    here carry a literal '$' in unit strings (e.g. '$/TEU',
+    '$/tonne CO2'), which produced titles like
+    'Required Freight Rate (/TEU)vsCarbonTax(/tonne CO2)'. Escaping every
+    '$' as '\\$' tells matplotlib to render a literal dollar instead.
+    """
+    return s.replace("$", r"\$")
+
 
 class FuelConfig:
     """
@@ -40,6 +111,9 @@ class FuelConfig:
             "VolFactor": 1.02, # Frames/structure take little space
             "Carbon": 3.206,   # tCO2 per tonne fuel (MDO)
             "Machinery": 14.0, # kg/kW (Heavy block, crankshaft)
+            "MaintenancePct": 0.035, # Slow-speed 2-stroke; mature, well-spared (% of S0/yr)
+            "StructureFactor": 1.00, # Baseline hull steel - reference case
+            "OutfitFactor": 1.00,    # Baseline outfit - reference case
             "IsNuclear": False
         },
         "Geared diesel": {
@@ -50,6 +124,9 @@ class FuelConfig:
             "VolFactor": 1.02,
             "Carbon": 3.206,
             "Machinery": 11.0, # Medium speed engines are lighter per kW
+            "MaintenancePct": 0.045, # Adds gearbox + medium-speed engine wear (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Steam turbines": {
@@ -60,6 +137,9 @@ class FuelConfig:
             "VolFactor": 1.02,
             "Carbon": 3.114,   # HFO Carbon factor
             "Machinery": 9.0,  # Turbines are light; Boilers are the heavy part
+            "MaintenancePct": 0.030, # Mature; main wear is boiler tubes (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Nuclear SMR": {
@@ -70,6 +150,26 @@ class FuelConfig:
             "VolFactor": 0.0,
             "Carbon": 0.0,
             "Machinery": 20.0, # Scaling factor (Base mass of ~2000t covers the reactor)
+            # Machinery maintenance % applied to S0 (reactor capex). Set
+            # deliberately low because (a) SMR service intervals are long
+            # and (b) the dominant recurring nuclear cost — periodic core
+            # replacement — is already amortised separately into H7 via
+            # annual_core_cost. Applying a flat 4% to reactor capex would
+            # double-count and inflate OPEX by an order of magnitude.
+            # Reference: civilian nuclear plant non-fuel O&M is ~1-2%
+            # of reactor capex per year (IAEA, EPRI benchmarks).
+            "MaintenancePct": 0.015,
+            # Hull steel penalty: reinforced reactor-compartment subdivision,
+            # double-wall collision/grounding protection on both sides of the
+            # compartment, dedicated cofferdams. ~8% added to M1 is consistent
+            # with NS Savannah as-built data and ABS Advisory on Nuclear Power
+            # design guidance for civilian merchant nuclear ships.
+            "StructureFactor": 1.08,
+            # Outfit penalty: shielded control room, redundant safety I&C,
+            # radiation monitoring, specialised HVAC for the reactor
+            # compartment. ~4% on M2 matches typical naval-architecture
+            # estimates for nuclear merchant outfit (Gravina et al., 2012).
+            "OutfitFactor": 1.04,
             "IsNuclear": True
         },
         "Methanol (ICE)": {
@@ -80,6 +180,9 @@ class FuelConfig:
             "VolFactor": 1.15, # Cofferdams required for safety
             "Carbon": 1.375,   # Chemical carbon content. (Set to 0.0 for "Green Methanol")
             "Machinery": 15.0, # Slightly heavier engine block (compression ratio)
+            "MaintenancePct": 0.040, # Diesel-like with newer fuel handling (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Hydrogen (ICE)": {
@@ -90,6 +193,9 @@ class FuelConfig:
             "VolFactor": 3.0,  
             "Carbon": 0.0,     
             "Machinery": 15.0, # LIGHTER than Fuel Cell (No heavy stack/batteries)
+            "MaintenancePct": 0.055, # Cryogenic handling, tighter inspection (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         
@@ -101,6 +207,9 @@ class FuelConfig:
             "VolFactor": 1.9,  # Insulation takes space
             "Carbon": 2.75,    # Lower carbon than diesel, but not zero
             "Machinery": 16.0, # Heavy: Engine + Gas Valve Unit + Vaporizers
+            "MaintenancePct": 0.045, # Cryogenic + gas-handling adds complexity (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Hydrogen (Fuel Cell)": {
@@ -111,6 +220,9 @@ class FuelConfig:
             "VolFactor": 3.0,  # CRITICAL: Insulation thickness triples the volume
             "Carbon": 0.0,
             "Machinery": 18.0, # HEAVIER than Diesel: Stack + Compressors + Humidifiers + Radiators
+            "MaintenancePct": 0.060, # Stack replacement, emerging tech (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Ammonia (Combustion)": {
@@ -121,6 +233,9 @@ class FuelConfig:
             "VolFactor": 1.4,  # Cylindrical tanks waste hull space
             "Carbon": 0.0,     # Zero Carbon molecule
             "Machinery": 16.0, # Diesel engine + massive SCR catalyst system + Scrubber
+            "MaintenancePct": 0.050, # SCR catalyst service, toxicity handling (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         },
         "Electric (Battery)": {
@@ -131,6 +246,9 @@ class FuelConfig:
             "VolFactor": 1.0,  # Packs are modular blocks
             "Carbon": 0.0,
             "Machinery": 8.0,  # Electric Motors are incredibly light
+            "MaintenancePct": 0.025, # Few moving parts; cell replacement is a separate capex cycle (% of S0/yr)
+            "StructureFactor": 1.00,
+            "OutfitFactor": 1.00,
             "IsNuclear": False
         }
     }
@@ -138,6 +256,27 @@ class FuelConfig:
     @staticmethod
     def get(name):
         return FuelConfig.DATA.get(name, FuelConfig.DATA["Direct diesel"])
+
+
+# Per-fuel default market prices ($/tonne, mid-2020s figures). Single
+# source of truth: BattleFuelConfigDialog uses these to pre-fill its
+# per-engine table, and _on_fuel_changed uses them to auto-populate
+# the main fuel-price field whenever the engine dropdown changes —
+# fixing the silent mismatch where direct calc kept a stale global
+# price (e.g. $625 for everything) while battle mode swapped to the
+# fuel-appropriate value behind the scenes.
+DEFAULT_FUEL_PRICE = {
+    "Direct diesel":         650.0,    # MGO/MDO
+    "Geared diesel":         650.0,
+    "Steam turbines":        500.0,    # HFO
+    "Nuclear SMR":             0.0,    # No fuel cost (reactor cost handles it)
+    "Methanol (ICE)":        500.0,    # Grey methanol
+    "Hydrogen (ICE)":       4000.0,    # Grey/blue H2 mid-range
+    "LNG (Dual Fuel)":       700.0,
+    "Hydrogen (Fuel Cell)": 4000.0,
+    "Ammonia (Combustion)":  700.0,    # Grey ammonia
+    "Electric (Battery)":    150.0,    # Pack-equivalent grid energy
+}
 
 class ShipConfig:
     DATA = {
@@ -282,33 +421,65 @@ class ResistanceMethodConfig:
 class GraphWindow(QWidget):
     """
     Displays either a 2D line graph or a 3D wireframe plot.
+    Includes interactive matplotlib toolbar (zoom/pan/save) and a
+    high-resolution PNG export button.
     """
     def __init__(self, x_data, y_data, z_data=None, x_label="", y_label="", z_label="", title=""):
         super().__init__()
         self.setWindowTitle(title)
-        self.setMinimumSize(900, 700)
-        
+        self.setMinimumSize(900, 720)
+
+        # Convert internal dropdown codes to readable labels, then escape
+        # any '$' so matplotlib doesn't enter mathtext mode (see mpl_safe).
+        x_label = mpl_safe(pretty_label(x_label))
+        y_label = mpl_safe(pretty_label(y_label))
+        z_label = mpl_safe(pretty_label(z_label))
+        # Title comes pre-formatted from caller (e.g. "RFR(...) vs Speed");
+        # it's not a LABEL_MAP key, so just escape '$' for the figure
+        # title without remapping. Window title (Qt) is unaffected.
+        mpl_title = mpl_safe(title)
+
         layout = QVBoxLayout(self)
-        fig = Figure(figsize=(8, 6), dpi=100)
-        canvas = FigureCanvas(fig)
-        
+        self.fig = Figure(figsize=(8, 6), dpi=100)
+        self.fig.patch.set_facecolor('white')
+        canvas = FigureCanvas(self.fig)
+
         if z_data is not None:
-            ax = fig.add_subplot(111, projection='3d')
-            ax.plot_wireframe(x_data, y_data, z_data, color='blue', linewidth=0.5)
-            ax.set_xlabel(x_label)
-            ax.set_ylabel(y_label)
-            ax.set_zlabel(z_label)
+            ax = self.fig.add_subplot(111, projection='3d')
+            ax.plot_wireframe(x_data, y_data, z_data, color='#1f4e79', linewidth=0.6)
+            ax.set_xlabel(x_label, fontsize=11, labelpad=10)
+            ax.set_ylabel(y_label, fontsize=11, labelpad=10)
+            ax.set_zlabel(z_label, fontsize=11, labelpad=10)
         else:
-            ax = fig.add_subplot(111)
+            ax = self.fig.add_subplot(111)
             if x_data is not None and y_data is not None:
-                ax.plot(x_data, y_data, marker='o', linestyle='-')
-            ax.set_xlabel(x_label)
-            ax.set_ylabel(y_label)
-            
-        ax.set_title(title)
-        if z_data is None: ax.grid(True)
-        
+                ax.plot(x_data, y_data, marker='o', linestyle='-',
+                        color='#1f4e79', markersize=6, linewidth=2)
+            ax.set_xlabel(x_label, fontsize=11)
+            ax.set_ylabel(y_label, fontsize=11)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+        ax.set_title(mpl_title, fontsize=13, fontweight='bold', pad=15)
+        self.fig.tight_layout()
+
+        # Matplotlib's built-in toolbar gives free zoom / pan / save / home
+        layout.addWidget(NavigationToolbar(canvas, self))
         layout.addWidget(canvas)
+
+        # Dedicated one-click high-res PNG export
+        btn_save = QPushButton("Save as PNG (300 dpi)")
+        btn_save.clicked.connect(self._save_png)
+        layout.addWidget(btn_save)
+
+    def _save_png(self):
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "Save Graph", "graph.png",
+            "PNG Image (*.png);;PDF (*.pdf);;SVG (*.svg)"
+        )
+        if fileName:
+            self.fig.savefig(fileName, dpi=300, bbox_inches='tight', facecolor='white')
 
 class RouteDialog(QDialog):
     """
@@ -496,23 +667,11 @@ class BattleFuelConfigDialog(QDialog):
     Fuel prices and carbon factors are auto-filled per engine from rough
     market figures / FuelConfig respectively, so each fuel arrives with a
     sensible default rather than a single global value.  All three columns
-    are editable.
+    are editable.  Default fuel prices live at module level
+    (DEFAULT_FUEL_PRICE) so the main widget can use the same figures when
+    the engine dropdown changes — keeping direct-calc and battle-mode
+    consistent.
     """
-
-    # Rough $/tonne market figures (mid-2020s; user can override).
-    # Battery is "$/tonne equivalent for grid electricity at pack level".
-    DEFAULT_FUEL_PRICE = {
-        "Direct diesel":         650.0,    # MGO/MDO
-        "Geared diesel":         650.0,
-        "Steam turbines":        500.0,    # HFO
-        "Nuclear SMR":             0.0,    # No fuel cost (reactor cost handles it)
-        "Methanol (ICE)":        500.0,    # Grey methanol
-        "Hydrogen (ICE)":       4000.0,    # Grey/blue H2 mid-range
-        "LNG (Dual Fuel)":       700.0,
-        "Hydrogen (Fuel Cell)": 4000.0,
-        "Ammonia (Combustion)":  700.0,    # Grey ammonia
-        "Electric (Battery)":    150.0,    # Pack-equivalent grid energy
-    }
 
     def __init__(self, engines, default_fuel_price, default_carbon_tax, parent=None):
         super().__init__(parent)
@@ -560,8 +719,9 @@ class BattleFuelConfigDialog(QDialog):
             item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(i, 0, item_name)
 
-            # Per-fuel default price
-            price = self.DEFAULT_FUEL_PRICE.get(engine, global_price)
+            # Per-fuel default price (module-level dict, shared with
+            # _on_fuel_changed in the main widget).
+            price = DEFAULT_FUEL_PRICE.get(engine, global_price)
             self.table.setItem(i, 1, QTableWidgetItem(f"{price:.1f}"))
 
             # Carbon tax: zero-carbon fuels get 0 by default since the tax
@@ -802,7 +962,14 @@ class ShipDesViewWidget(QWidget):
         self.m_S5_Machinery1 = 9500.0  # Machinery cost param 1 (conventional)
         self.m_S6_Machinery2 = 21000.0 # Machinery cost param 2 (conventional)
         self.m_H2_Crew = 3000000.0    # Annual crew cost
-        self.m_H3_Maint_Percent = 0.04 # Maintenance as % of build cost (was 0.05)
+        # Maintenance percentage applied to HULL + OUTFIT only (S8 + S9).
+        # Machinery maintenance is now fuel-specific and lives in
+        # FuelConfig["MaintenancePct"] (applied to S0 in _cost). This split
+        # fixes the prior bug where a flat 4% on total build cost made
+        # nuclear OPEX an order of magnitude too high — reactor capex
+        # dominates S0 but real nuclear plant O&M is ~1-2% of capex/yr,
+        # not 4%, and core replacement is already amortised into H7.
+        self.m_H3_Maint_Percent = 0.04
         self.m_H4_Port = 1500000.0   # Annual port/admin
         self.m_H5_Stores = 650000.0  # Annual stores
         self.m_H6_Overhead = 1500000.0 # Annual overhead
@@ -1440,7 +1607,7 @@ class ShipDesViewWidget(QWidget):
         range_group.setLayout(range_layout)
         left_col.addWidget(range_group)
         
-        comp_group = QGroupBox("Competitive Analysis (Battle Mode)")
+        comp_group = QGroupBox("Competitive Analysis")
         comp_layout = QGridLayout()
         
         comp_layout.addWidget(QLabel("Select Engines (Click to toggle):"), 0, 0, 1, 2)
@@ -1548,6 +1715,10 @@ class ShipDesViewWidget(QWidget):
         self.combo_ship.currentIndexChanged.connect(self._reset_dlg)
         self.combo_engine.currentIndexChanged.connect(self._reset_dlg) 
         self.combo_engine.currentTextChanged.connect(self._on_fuel_changed)
+        # Fire once with the initial selection so the LHV and fuel-price
+        # fields are correct at startup, not just after the user changes
+        # the dropdown. Connection above only fires on subsequent changes.
+        self._on_fuel_changed(self.combo_engine.currentText())
 
         self.combo_resistance_method.currentTextChanged.connect(self._on_resistance_method_changed)
         self.combo_resistance_method.currentIndexChanged.connect(self._reset_dlg)
@@ -1574,10 +1745,28 @@ class ShipDesViewWidget(QWidget):
         self._reset_dlg()
         
     def _on_fuel_changed(self, fuel_name):
-        """Auto-populates the LHV field when a new fuel is selected."""
+        """Auto-populate the LHV and fuel-price fields when the engine
+        selection changes.
+
+        The fuel price uses DEFAULT_FUEL_PRICE — the same per-fuel figures
+        that BattleFuelConfigDialog injects in battle mode. Previously the
+        main widget kept a single global price (default $625) regardless
+        of fuel, so direct-calc RFR for, say, hydrogen ($4000/t) silently
+        used $625 while a battle-mode sweep used $4000. Auto-injecting
+        here closes that gap. The field stays editable, so the user can
+        still type a custom price after switching engines.
+        """
         fuel_data = FuelConfig.get(fuel_name)
         if fuel_data["LHV"] > 0:
             self.edit_lhv.setText(str(fuel_data["LHV"]))
+
+        # Skip nuclear: it has no fuel cost line (reactor capex flows
+        # through H7 separately) and the edit_fuel field is hidden for
+        # nuclear anyway. Writing 0 here is harmless but pointless.
+        if not fuel_data.get("IsNuclear", False):
+            price = DEFAULT_FUEL_PRICE.get(fuel_name)
+            if price is not None:
+                self.edit_fuel.setText(f"{price:.1f}")
 
     def _on_resistance_method_changed(self, method_name):
         """Show/hide the Holtrop hull-form parameter panel and update the
@@ -3300,43 +3489,74 @@ class ShipDesViewWidget(QWidget):
         """
         Helper to launch a specialized graph window for multiple lines.
         """
+        # Resolve clean labels up-front
+        x_label = pretty_label(getattr(self, 'battle_x_label', "Input Variable"))
+        y_label_raw = getattr(self, 'battle_y_label', "Output Variable")
+        if y_label_raw == "RFR($/tonne or $/TEU)":
+            unit = "$/TEU" if self.radio_teu.isChecked() else "$/tonne"
+            y_label = f"Required Freight Rate ({unit})"
+        else:
+            y_label = pretty_label(y_label_raw)
+
+        # Escape '$' so matplotlib doesn't pair the dollars in
+        # ($/TEU)...($/tonne CO2) into a math-mode region (which would
+        # collapse spaces and italicise everything between them).
+        x_label = mpl_safe(x_label)
+        y_label = mpl_safe(y_label)
+
         if not hasattr(self, 'battle_window') or self.battle_window is None:
             self.battle_window = QWidget()
-            self.battle_window.setWindowTitle("Battle Mode")
-            self.battle_window.resize(900, 600)
+            self.battle_window.setWindowTitle("Competitive Analysis")
+            self.battle_window.resize(1000, 720)
             layout = QVBoxLayout(self.battle_window)
-            
-            fig = Figure(figsize=(8, 6), dpi=100)
-            self.battle_canvas = FigureCanvas(fig)
-            self.battle_ax = fig.add_subplot(111)
+
+            self.battle_fig = Figure(figsize=(9, 6), dpi=100)
+            self.battle_fig.patch.set_facecolor('white')
+            self.battle_canvas = FigureCanvas(self.battle_fig)
+            self.battle_ax = self.battle_fig.add_subplot(111)
+
+            layout.addWidget(NavigationToolbar(self.battle_canvas, self.battle_window))
             layout.addWidget(self.battle_canvas)
-        
+
+            btn_save = QPushButton("Save as PNG (300 dpi)")
+            btn_save.clicked.connect(self._save_battle_png)
+            layout.addWidget(btn_save)
+
         ax = self.battle_ax
         ax.clear()
-        
+
         markers = ['o', 's', '^', 'D', 'v', 'p', '*', 'X', 'h', '+']
-        
+        # Wong 2011 colour-blind-safe palette
+        colors = ['#0072B2', '#D55E00', '#009E73', '#CC79A7',
+                  '#F0E442', '#56B4E9', '#E69F00', '#000000']
+
         for i, (engine_name, (x_data, y_data)) in enumerate(results_dict.items()):
             if x_data and y_data:
-                marker = markers[i % len(markers)]
-                ax.plot(x_data, y_data, marker=marker, label=engine_name, linewidth=2)
-            
-        ax.grid(True)
-        ax.legend()
-        
-        # Apply dynamic labels stored during on_run_battle
-        x_label = getattr(self, 'battle_x_label', "Input Variable")
-        y_label = getattr(self, 'battle_y_label', "Output Variable")
-        
-        if y_label == "RFR($/tonne or $/TEU)":
-            y_label = "RFR ($/TEU)" if self.radio_teu.isChecked() else "RFR ($/tonne)"
+                ax.plot(x_data, y_data,
+                        marker=markers[i % len(markers)],
+                        color=colors[i % len(colors)],
+                        label=engine_name,
+                        linewidth=2, markersize=6)
 
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-        ax.set_title(f"Economic Battle: {y_label} vs {x_label}")
-        
+        ax.set_xlabel(x_label, fontsize=11)
+        ax.set_ylabel(y_label, fontsize=11)
+        ax.set_title(f"{y_label} vs {x_label}", fontsize=13, fontweight='bold', pad=15)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.legend(frameon=True, framealpha=0.9, edgecolor='gray', loc='best')
+
+        self.battle_fig.tight_layout()
         self.battle_canvas.draw()
         self.battle_window.show()
+
+    def _save_battle_png(self):
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "Save Competitive Analysis", "competitive_analysis.png",
+            "PNG Image (*.png);;PDF (*.pdf);;SVG (*.svg)"
+        )
+        if fileName and hasattr(self, 'battle_fig'):
+            self.battle_fig.savefig(fileName, dpi=300, bbox_inches='tight', facecolor='white')
 
     def on_export_battle_csv(self):
         """
@@ -3473,11 +3693,20 @@ class ShipDesViewWidget(QWidget):
         return True
         
     def _cost(self):
-        """Port of Sub_cost - extended with retrofit cost discount and
-        LNG methane-slip handling for chapter 5 sensitivity analysis."""
+        """Port of Sub_cost - extended with retrofit cost discount,
+        LNG methane-slip handling for chapter 5 sensitivity analysis,
+        and a fuel-specific maintenance split (chapter 5 OPEX fix).
 
-        H3 = self.m_H3_Maint_Percent
-        
+        Maintenance was previously a flat percentage of total build cost
+        (m_H3_Maint_Percent * self.S). That over-inflated nuclear OPEX
+        because reactor capex (S0_nuclear) is an order of magnitude larger
+        than diesel machinery, yet real nuclear plant non-fuel O&M is
+        ~1-2% of capex/yr, not 4%. We now split:
+          - Hull + outfit maintenance: m_H3_Maint_Percent * (S8 + S9)
+          - Machinery maintenance:     fuel["MaintenancePct"] * S0
+        Core replacement and decommissioning continue to flow through H7.
+        """
+
         C_safe = self.C if self.C != 0 else 1e-9
         
         S8 = self.m_S1_Steel1 * (self.M1 ** (2/3)) * (self.L1 ** (1/3)) / C_safe + self.m_S2_Steel2 * self.M1
@@ -3520,7 +3749,16 @@ class ShipDesViewWidget(QWidget):
         H0 = I_rate * H0 / (H0 - 1.0)
         
         self.H1 = H0 * self.S 
-        H3 = H3 * self.S 
+
+        # Maintenance split (see _cost docstring). Hull + outfit at the
+        # legacy flat percentage; machinery at a fuel-specific percentage
+        # from FuelConfig. Falling back to m_H3_Maint_Percent if a fuel
+        # entry is missing the new field keeps user-defined fuels working.
+        _fuel_for_maint = FuelConfig.get(self.combo_engine.currentText())
+        _machinery_maint_pct = _fuel_for_maint.get(
+            "MaintenancePct", self.m_H3_Maint_Percent
+        )
+        H3 = self.m_H3_Maint_Percent * (S8 + S9) + _machinery_maint_pct * S0
 
         self.annual_opex = self.m_H2_Crew + H3 + self.m_H4_Port + self.m_H5_Stores + self.m_H6_Overhead + self.m_H8_Other
         self.annual_fuel_cost_only = 0.0
@@ -3796,6 +4034,22 @@ class ShipDesViewWidget(QWidget):
 
         engine_name = self.combo_engine.currentText()
         fuel_data = FuelConfig.get(engine_name)
+
+        # Fuel-specific structure / outfit penalty (Option B).
+        # M1 (steel) and M2 (outfit) above are pure hull-geometry regressions
+        # and know nothing about the engine choice. For nuclear we need to
+        # capture the reinforced reactor-compartment subdivision (extra hull
+        # steel) and the specialised systems outfit (radiation monitoring,
+        # shielded control room, redundant safety I&C, dedicated HVAC) that
+        # the L*B and cubic-number regressions do not see.
+        # Defaults are 1.0 for every conventional fuel, so the legacy
+        # diesel/steam baseline (and every alt-fuel comparison case) is
+        # numerically unchanged. Nuclear gets +8% on M1 and +4% on M2.
+        # The aux-outfit additive term at line ~3878 is applied *after*
+        # this scaling, which is what we want (refrigerated-hold insulation
+        # is not subject to the nuclear outfit penalty).
+        self.M1 *= fuel_data.get("StructureFactor", 1.0)
+        self.M2 *= fuel_data.get("OutfitFactor", 1.0)
 
         is_legacy_diesel = (self.Ketype == 1 or self.Ketype == 2)
         is_legacy_steam = (self.Ketype == 3)
