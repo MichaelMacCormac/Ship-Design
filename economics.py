@@ -1,0 +1,149 @@
+"""Year-by-year cash flow and Required Freight Rate (RFR).
+
+The legacy RFR annualised everything into one year:
+
+    RFR = (CRF * capex + annual costs - premium income) / annual cargo
+
+build_cash_flow() lays the same cost lines out year by year instead and
+defines RFR as the freight rate that makes the present value of revenue equal
+the present value of costs:
+
+    RFR = PV(costs - premium income) / PV(cargo carried)
+
+With constant inputs, ship life == loan term and discount rate == loan rate,
+the two definitions give the same number (PV of the loan annuity is the
+capex, and both PVs share one annuity factor). Each cost line can be a
+scalar or a per-year array, so price paths (fuel, carbon) and Monte Carlo
+draws can drop in without touching the solver.
+
+Pure numpy - no Qt, no solver state.
+"""
+from dataclasses import dataclass, field
+
+import numpy as np
+
+
+def capital_recovery_factor(rate, years):
+    """Annuity factor: the constant annual payment that repays 1.0 of
+    principal over `years` at interest `rate` (a fraction, e.g. 0.10)."""
+    if years <= 0:
+        raise ValueError("years must be >= 1")
+    if rate == 0:
+        return 1.0 / years
+    g = (1.0 + rate) ** years
+    return rate * g / (g - 1.0)
+
+
+@dataclass
+class CashFlowInputs:
+    """Inputs to build_cash_flow(). Money in $, quantities per year.
+
+    Every per-year field takes either a scalar (the same value each operating
+    year) or a sequence of length ship_life (year 1 first).
+    """
+    capex: float                  # build cost, $ (financed in full)
+    loan_rate: float              # fraction/yr
+    loan_term: int                # years of loan repayment
+    ship_life: int                # operating years (cargo carried, opex paid)
+    discount_rate: float          # fraction/yr
+    cargo_per_year: object        # tonnes of cargo carried per year
+    fixed_opex: object = 0.0      # crew, port, stores, overhead, other, $
+    maintenance: object = 0.0     # hull/outfit + machinery maintenance, $
+    fuel_tonnes: object = 0.0     # main-engine fuel, t
+    fuel_price: object = 0.0      # $/t
+    co2e_tonnes: object = 0.0     # taxable CO2-equivalent, t
+    carbon_price: object = 0.0    # $/t CO2e (0 when no carbon tax applies)
+    aux_fuel_tonnes: object = 0.0 # auxiliary genset fuel, t
+    aux_price: object = 0.0       # $/t
+    nuclear: object = 0.0         # annualised core replacement + decommissioning fund, $
+    premium_income: object = 0.0  # reefer/cold-chain premium revenue, $
+
+
+@dataclass
+class CashFlowResult:
+    """Yearly cash-flow table plus the PV totals and RFR derived from it.
+
+    Arrays run over years 1..horizon, where horizon = max(ship_life,
+    loan_term): loan payments still fall due if the ship is scrapped
+    before the loan is repaid, but it earns and spends nothing after.
+    """
+    years: np.ndarray
+    capital: np.ndarray
+    fixed_opex: np.ndarray
+    maintenance: np.ndarray
+    fuel: np.ndarray
+    carbon: np.ndarray
+    aux_fuel: np.ndarray
+    nuclear: np.ndarray
+    premium_income: np.ndarray
+    cargo: np.ndarray
+    discount_factor: np.ndarray
+    net_cost: np.ndarray = field(init=False)
+    pv_costs: float = field(init=False)
+    pv_cargo: float = field(init=False)
+    rfr: float = field(init=False)
+
+    def __post_init__(self):
+        self.net_cost = (self.capital + self.fixed_opex + self.maintenance + self.fuel
+                         + self.carbon + self.aux_fuel + self.nuclear - self.premium_income)
+        self.pv_costs = float(np.sum(self.net_cost * self.discount_factor))
+        self.pv_cargo = float(np.sum(self.cargo * self.discount_factor))
+        self.rfr = self.pv_costs / self.pv_cargo if self.pv_cargo != 0 else float("inf")
+
+    COLUMNS = ("Year", "Capital ($)", "Fixed OPEX ($)", "Maintenance ($)", "Fuel ($)",
+               "Carbon tax ($)", "Aux fuel ($)", "Nuclear core+decom ($)",
+               "Premium income ($)", "Net cost ($)", "Cargo (t)", "Discount factor")
+
+    def to_rows(self):
+        """Header + one row per year, for CSV export."""
+        rows = [list(self.COLUMNS)]
+        for i, y in enumerate(self.years):
+            rows.append([int(y), self.capital[i], self.fixed_opex[i], self.maintenance[i],
+                         self.fuel[i], self.carbon[i], self.aux_fuel[i], self.nuclear[i],
+                         self.premium_income[i], self.net_cost[i], self.cargo[i],
+                         self.discount_factor[i]])
+        return rows
+
+
+def _per_year(value, ship_life, horizon, name):
+    """Expand a scalar or length-ship_life sequence to a horizon-length
+    array, zero after the end of ship life."""
+    out = np.zeros(horizon)
+    arr = np.asarray(value, dtype=float)
+    if arr.ndim == 0:
+        out[:ship_life] = float(arr)
+    elif arr.shape == (ship_life,):
+        out[:ship_life] = arr
+    else:
+        raise ValueError(f"{name}: expected a scalar or {ship_life} yearly values, got shape {arr.shape}")
+    return out
+
+
+def build_cash_flow(inp):
+    """Lay the cost lines of CashFlowInputs out year by year and derive the RFR."""
+    life = int(inp.ship_life)
+    term = int(inp.loan_term)
+    if life < 1 or term < 1:
+        raise ValueError("ship_life and loan_term must both be >= 1 year")
+    horizon = max(life, term)
+
+    def py(name):
+        return _per_year(getattr(inp, name), life, horizon, name)
+
+    years = np.arange(1, horizon + 1)
+    capital = np.zeros(horizon)
+    capital[:term] = capital_recovery_factor(inp.loan_rate, term) * inp.capex
+
+    return CashFlowResult(
+        years=years,
+        capital=capital,
+        fixed_opex=py("fixed_opex"),
+        maintenance=py("maintenance"),
+        fuel=py("fuel_tonnes") * py("fuel_price"),
+        carbon=py("co2e_tonnes") * py("carbon_price"),
+        aux_fuel=py("aux_fuel_tonnes") * py("aux_price"),
+        nuclear=py("nuclear"),
+        premium_income=py("premium_income"),
+        cargo=py("cargo_per_year"),
+        discount_factor=(1.0 + inp.discount_rate) ** -years.astype(float),
+    )

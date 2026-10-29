@@ -22,6 +22,7 @@ A multitude of alternative fuel types. The volume constraints account for specif
 
 ### 3. Economic & Commercial Modeling
 * **RFR Calculation:** Precise calculation of **Required Freight Rate** (tonne or TEU) to break even.
+* **Year-by-Year Cash Flow:** RFR is derived from a discounted yearly cash flow (loan repayments, OPEX, maintenance, fuel, carbon tax, nuclear core/decommissioning, premium income). Ship life can differ from the loan term, and the full table exports to CSV.
 * **Carbon Economics:** Integrated **Carbon Tax** modeling to stress-test designs against future regulations.
 * **Cold Chain Analysis:** Detailed auxiliary load analysis for refrigerated cargo (Reefers), including premium freight income calculations.
 
@@ -57,7 +58,7 @@ A multitude of alternative fuel types. The volume constraints account for specif
 
 Run the main application interface:
 ```bash
-python ship_des_view_widget.py
+python main.py
 ```
 
 ### Quick Start Guide
@@ -72,15 +73,35 @@ python ship_des_view_widget.py
 
 * **Hydrodynamics:** Resistance and propulsion power are calculated using regression-based methods, accounting for Froude and Reynolds numbers to ensure hull efficiency.
 * **Weights:** Lightship mass estimation includes detailed breakdowns for steel (using K1 coefficients), outfit (using intercept/slope factors), and machinery mass based on specific engine types.
-* **Economics:** The tool employs a Net Present Value (NPV) approach to derive the Required Freight Rate (RFR), factoring in capital repayment, interest rates, annual fuel costs, and carbon taxes.
+* **Economics:** The Required Freight Rate is the freight rate at which the present value of revenue equals the present value of costs: `RFR = PV(costs − premium income) / PV(cargo)`, discounted at the interest rate. Loan payments run for the repayment term; cargo and operating costs run for the ship life. With ship life equal to the loan term and constant prices, this equals the classic annualised `(CRF·capex + annual costs) / annual cargo`. Every cost line accepts a per-year array, so price paths can be plugged in.
 * **Volume Solver:** For volume-limited designs (like Container Ships or Hydrogen-powered vessels), the Volume Limiter expands ship dimensions until the required cargo and fuel volumes fit within the hull.
 
 ## Project Structure
 
-* `ship_des_view_widget.py`: The main application entry point containing the GUI, the core physics-based iteration loops, and the resistance/power calculators.
-* `FuelConfig`: A central database class defining physics properties (LHV, Density, Efficiency) and mass factors for 10 distinct fuel/engine configurations.
-* `ShipConfig`: A configuration class containing empirical constants for different ship types, including EEDI and CII reference line parameters.
+* `main.py`: Application entry point.
+* `ship_des_view_widget_holtrop.py`: The GUI (`ShipDesViewWidget`), plus range analysis, battle mode, plotting and the text report. It inherits the solver below and copies its form values onto the solver inputs.
+* `ship_solver.py`: `ShipDesignSolver`, the Qt-free physics and economics: the iterative hull solver, resistance (Taylor / Holtrop-Mennen), propeller, masses, volume limiter, costs, EEDI/CII.
+* `economics.py`: The year-by-year cash flow (`build_cash_flow`) and RFR.
+* `ship_config.py`: Static tables: `FuelConfig` (LHV, density, efficiency, mass/volume factors per fuel), `ShipConfig` (per-ship-type constants, EEDI/CII reference lines), `ResistanceMethodConfig`, `EmpiricalBasisConfig`.
 * `RouteDialog`: A popup module used to calculate operational profiles and power factors for specific global trade routes.
+* `tests/`: Headless unit tests (`python -m unittest discover tests`).
+
+### Running the solver without the GUI
+
+```python
+from ship_solver import ShipDesignSolver
+
+s = ShipDesignSolver()
+s.set_inputs(ship_name="Tanker", engine_name="Ammonia (Combustion)",
+             m_Weight=50000.0, m_Speed=15.0, m_Fuel=700.0, m_LHV=18.6,
+             m_ShipLife=25.0)
+if s.solve():
+    print(s.results()["RFR($/tonne or $/TEU)"], s.cash_flow.pv_costs)
+else:
+    print(s.solver_errors)
+```
+
+`set_inputs` rejects unknown attribute names. After `solve()`, `s.cash_flow` holds the yearly table (`s.cash_flow.to_rows()`).
 
 ## Contributing
 
