@@ -338,9 +338,25 @@ def _inputs_for(base_side, side, values, override=None):
     return inp
 
 
-def _rfr(inputs):
+def _solve(inputs):
     s = ShipDesignSolver().set_inputs(**inputs)
-    return s.Rf if s.solve() else float("nan")
+    return s, s.solve()
+
+
+def _rfr(inputs):
+    s, ok = _solve(inputs)
+    return s.Rf if ok else float("nan")
+
+
+def _stability_summary(solver, ok):
+    """(GM_min, stability_ok, first failure) of a base-case solve."""
+    if not ok:
+        return None
+    fails = list(getattr(solver, "stability_failures", []))
+    if getattr(solver, "deck_fit_warning", ""):
+        fails.append(solver.deck_fit_warning)
+    return (getattr(solver, "GM_min", float("nan")), bool(getattr(solver, "stability_ok", False)),
+            fails[0] if fails else "")
 
 
 @dataclass
@@ -410,6 +426,8 @@ class ComparisonResult:
     cancelled: bool = False
     name_a: str = ""          # display names (fuel, plus propeller count when
     name_b: str = ""          # the two sides differ in it); default: the fuel
+    stability_a: Optional[tuple] = None   # base case (GM_min, ok, first failure);
+    stability_b: Optional[tuple] = None   # the hull does not vary with the samples
     gap: np.ndarray = field(init=False)
     ok: np.ndarray = field(init=False)
 
@@ -463,6 +481,13 @@ class ComparisonResult:
         if self.n - n_ok:
             lines.append(f"  {self.n - n_ok} sample(s) failed to solve and are excluded.")
         lines.append(f"Base case RFR:  A = {self.base_rfr_a:.2f}   B = {self.base_rfr_b:.2f}  ($/t)")
+        stab = []
+        for side, st in (("A", self.stability_a), ("B", self.stability_b)):
+            if st is not None:
+                gm, ok, why = st
+                stab.append(f"{side} GM min {gm:.2f} m {'OK' if ok else 'FAIL'}" + ("" if ok or not why else f" ({why})"))
+        if stab:
+            lines.append("Stability (base case):  " + "   ".join(stab))
         if n_ok:
             lines.append(f"P(B cheaper than A) = {100 * self.p_b_cheaper():.1f} %")
             for name, arr in (("RFR A", self.rfr_a[self.ok]), ("RFR B", self.rfr_b[self.ok]),
@@ -542,7 +567,10 @@ def run_comparison(base_inputs, fuel_a, fuel_b, uncertain, n=1000, seed=None, me
     base = {"A": fuel_setup(base_inputs, fuel_a, pa), "B": fuel_setup(base_inputs, fuel_b, pb)}
     name_a, name_b = option_names(fuel_a, pa, fuel_b, pb)
 
-    base_a, base_b = _rfr(base["A"]), _rfr(base["B"])
+    solver_a, ok_a = _solve(base["A"])
+    solver_b, ok_b = _solve(base["B"])
+    base_a = solver_a.Rf if ok_a else float("nan")
+    base_b = solver_b.Rf if ok_b else float("nan")
     base_be, base_status = float("nan"), ""
     if breakeven is not None and math.isfinite(base_a) and math.isfinite(base_b):
         base_be, base_status = _breakeven(base, {}, breakeven, base_a, base_b)
@@ -566,6 +594,7 @@ def run_comparison(base_inputs, fuel_a, fuel_b, uncertain, n=1000, seed=None, me
     trim = slice(0, done)
     return ComparisonResult(
         fuel_a=fuel_a, fuel_b=fuel_b, name_a=name_a, name_b=name_b,
+        stability_a=_stability_summary(solver_a, ok_a), stability_b=_stability_summary(solver_b, ok_b),
         samples={c: v[trim] for c, v in samples.items()},
         rfr_a=rfr_a[trim], rfr_b=rfr_b[trim],
         base_rfr_a=base_a, base_rfr_b=base_b,

@@ -101,6 +101,20 @@ class ShipDesignSolver:
         self.m_ShaftMassPerKW = 5.0    # kg/kW on each additional shaft line (placeholder)
         self.m_ShaftCostPerKW = 150.0  # $/kW on each additional shaft line (placeholder)
 
+        # Above-deck liquid hydrogen (hydrogen fuels only; no-op otherwise).
+        self.m_DeckH2 = False
+        self.m_DeckH2Pct = 100.0         # % of the LH2 (and its tanks) carried on deck
+        self.m_DeckTankDia = 8.0         # m, horizontal cylinder diameter (placeholder)
+        self.m_DeckTankSupport = 1.5     # m, saddle height above deck (placeholder)
+        self.m_DeckUsableFrac = 0.6      # fraction of L usable for deck tanks (placeholder)
+        self.m_DeckFoundationPct = 10.0  # deck structure, % of deck tank+fuel weight (placeholder)
+        self.m_DeckTEUTiers = 4.0        # container tiers lost per occupied deck slot (placeholder)
+
+        # Stability checks (see _stability_conditions).
+        self.m_GMRequired = 0.15         # m, minimum fluid GM in every condition (IMO IS Code)
+        self.m_FSCAllowance = 0.10       # m, free-surface allowance for below-deck tanks (placeholder)
+        self.m_AutoBeam = False          # widen the beam until the stability checks pass
+
         # Per-run override of fuel_data["Carbon"] (tCO2 / t fuel).  None
         # means "use the FuelConfig value".  Set by the Battle Mode dialog
         # so each engine can be evaluated against a user-tweaked carbon
@@ -337,7 +351,7 @@ class ShipDesignSolver:
                 "AnnualCarbonTax(M$)", "AnnualisedCAPEX(M$)", "AnnualOPEX(M$)",
                 "EEDI(gCO2/t.nm)", "AttainedCII", "FuelVol%Hull", "VolCargo(m3)",
                 "VolFuel(m3)", "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%",
-                "LevelisedFuelPrice($/t)", "LevelisedCarbonPrice($/t)"]
+                "LevelisedFuelPrice($/t)", "LevelisedCarbonPrice($/t)", "GMmin(m)", "WindHeel(deg)"]
         if not self.CalculatedOk:
             return {k: np.nan for k in keys}
         econ = bool(self.m_Econom)
@@ -379,10 +393,42 @@ class ShipDesignSolver:
             "VolUtilisation%": getattr(self, 'vol_utilisation_pct', np.nan),
             "LevelisedFuelPrice($/t)": cash.levelised_fuel_price if cash else np.nan,
             "LevelisedCarbonPrice($/t)": cash.levelised_carbon_price if cash else np.nan,
+            "GMmin(m)": getattr(self, 'GM_min', np.nan),
+            "WindHeel(deg)": getattr(self, 'wind_heel_max', np.nan),
         }
 
     def solve(self):
         """Run one design calculation from the current m_* inputs.
+
+        Wraps _solve_once(). With m_AutoBeam on (design modes only), a design
+        that fails the stability checks is re-solved with a fixed beam,
+        widened 3 % per step (up to 30 steps), until it passes; the user's
+        L/B and B settings are restored afterwards.
+        """
+        ok = self._solve_once()
+        self.auto_beam_steps = 0
+        self.B_original = self.B
+        if not (ok and self.m_AutoBeam and self.design_mode != 1 and not self.stability_ok):
+            return ok
+
+        saved = (self.m_Lbratio, self.m_Bvalue, self.m_BvalueV)
+        beam = self.B
+        try:
+            for step in range(1, 31):
+                beam *= 1.03
+                self.m_Lbratio, self.m_Bvalue, self.m_BvalueV = False, True, beam
+                ok = self._solve_once()
+                self.auto_beam_steps = step
+                if not ok or self.stability_ok:
+                    break
+        finally:
+            self.m_Lbratio, self.m_Bvalue, self.m_BvalueV = saved
+        self._log(f"[Auto-beam: B {self.B_original:.2f} -> {self.B:.2f} m in {self.auto_beam_steps} step(s); "
+                  f"stability {'OK' if ok and self.stability_ok else 'still failing'}]")
+        return ok
+
+    def _solve_once(self):
+        """One design calculation from the current m_* inputs (see solve()).
 
         The calculation core of the old OnButtonCal: resolve the design
         mode, iterate L1 until the cargo deadweight converges, run the
@@ -727,6 +773,8 @@ class ShipDesignSolver:
 
         if self.design_mode == 2:
             estimated_capacity = self._estimate_teu_capacity(self.L1, self.B, self.D)
+            # Deck LH2 tanks displace container stacks.
+            estimated_capacity -= getattr(self, 'deck_teu_lost', 0)
             if estimated_capacity < self.target_teu:
                 warning = (
                     "\r\n\r\n"
@@ -757,6 +805,7 @@ class ShipDesignSolver:
         # or on output checkboxes being ticked.
         self._compute_cii()
         self._capture_volume_budget()
+        self._stability_conditions()
         return True
 
     def _check_data(self):
@@ -848,6 +897,14 @@ class ShipDesignSolver:
                     self._show_error("Fatal error: Fuel cost must be positive!", "Input error")
                     self._focus_field("edit_fuel")
                     return False
+
+        if min(self.m_DeckH2Pct, self.m_DeckTankDia, self.m_DeckTankSupport, self.m_DeckUsableFrac,
+               self.m_DeckFoundationPct, self.m_DeckTEUTiers, self.m_GMRequired, self.m_FSCAllowance) < 0:
+            self._show_error("Fatal error: Deck-tank and stability inputs must not be negative!", "Input error")
+            return False
+        if self.m_DeckH2 and self.m_DeckTankDia <= 0:
+            self._show_error("Fatal error: Deck tank diameter must be positive!", "Input error")
+            return False
 
         if self.m_NumProps not in (1, 2):
             self._show_error(f"Fatal error: Number of propellers must be 1 or 2 (got {self.m_NumProps})!",
@@ -990,6 +1047,9 @@ class ShipDesignSolver:
             raw_mass = getattr(self, 'calculated_fuel_mass', 0.0) / tf
         if raw_mass > 0 and fuel_data["Density"] > 0:
             vol_fuel = (raw_mass * 1000.0) / fuel_data["Density"] * fuel_data["VolFactor"]
+            deck_frac = self._deck_frac()
+            if deck_frac > 0:
+                vol_fuel *= (1.0 - deck_frac)   # deck tanks take no hull volume
         
         vol_mach = (self.P2 * 0.7457) * 0.4 
         # Stores volume should scale with Lightship Mass (M1+M2+M3), not Cargo DWT (W1)
@@ -1155,6 +1215,207 @@ class ShipDesignSolver:
         self.F5 *= 0.001
         
         return True
+
+    # ------------------------------------------------------------------
+    # Design-stage stability: KG build-up, loading conditions, GZ, wind
+    # ------------------------------------------------------------------
+    def _stability_conditions(self):
+        """Departure / arrival stability from a weight-group KG build-up.
+
+        Sets stab_groups (departure KG build-up), stab_conditions (per
+        condition: displacement, draught, KB, BM, KG, free surface, GM,
+        deck-edge angle, wall-sided GZ, IS-2008 criteria where the
+        wall-sided curve is valid, steady wind heel), GM_min, stability_ok
+        and stability_failures. Formulas: SOLAS II-1/9 double bottom,
+        Kupras steel KG, Watson outfit and machinery KG, IS Code 2008
+        weather-criterion steady wind lever (504 Pa).
+        """
+        L, B, D, T, CB = self.L1, self.B, self.D, self.T, self.C
+        ship_data = ShipConfig.get(self.ship_name)
+        fuel_data = FuelConfig.get(self.engine_name)
+        self.stab_groups, self.stab_conditions = [], {}
+        self.stability_failures = []
+        self.GM_min = float("nan")
+        self.wind_heel_max = float("nan")
+        self.stability_ok = False
+        if min(L, B, D, T, CB, self.M) <= 0:
+            self.stability_failures.append("invalid hull dimensions")
+            return False
+
+        hdb = min(max(B / 20.0, 0.76), 2.0)                      # SOLAS II-1/9
+        kg_steel = (0.01 * D * (46.6 + 0.135 * (0.81 - CB) * (L / D) ** 2)
+                    + 0.008 * D * (L / B - 6.5))                  # Kupras
+        if L <= 125.0:
+            kg_outfit = D + 1.25                                  # Watson
+        elif L <= 250.0:
+            kg_outfit = D + 1.25 + 0.01 * (L - 125.0)
+        else:
+            kg_outfit = D + 2.5
+        kg_mach = hdb + 0.35 * (D - hdb)                          # Watson
+        kg_cargo = ship_data.get("Cargo_KG_D", 0.55) * D
+        kg_stores = D
+
+        foundations = getattr(self, 'M_deck_foundations', 0.0)
+        hull_steel = self.M1 - foundations
+        light = self.M1 + self.M2 + self.M3
+        margin = 0.02 * light
+        kg_light = ((hull_steel * kg_steel + foundations * D + self.M2 * kg_outfit + self.M3 * kg_mach)
+                    / light) if light > 0 else D
+
+        fuel_total = getattr(self, 'calculated_fuel_mass', 0.0) or 0.0   # fuel + tanks
+        fuel_raw = getattr(self, 'raw_fuel_mass', 0.0) or 0.0
+        tanks = max(fuel_total - fuel_raw, 0.0)
+        aux_fuel = getattr(self, 'W_aux_fuel', 0.0) or 0.0
+        stores = 13.0 * (abs(self.M) ** 0.35)
+        frac_deck = self._deck_frac()
+        if fuel_data.get("VolFactor", 1.0) >= 1.5:
+            kg_fuel_below = hdb + 0.3 * (D - hdb)                 # cryogenic hold tanks
+        else:
+            kg_fuel_below = hdb / 2.0                             # double-bottom / wing tanks
+        dt = self.m_DeckTankDia
+        kg_fuel_deck = D + self.m_DeckTankSupport + dt / 2.0
+
+        def groups(fuel_fill, stores_fill):
+            fuel_now = fuel_raw * fuel_fill
+            return [
+                ("Hull steel", hull_steel, kg_steel),
+                ("Deck foundations", foundations, D),
+                ("Outfit", self.M2, kg_outfit),
+                ("Machinery", self.M3, kg_mach),
+                ("Lightship margin", margin, kg_light),
+                ("Cargo", max(self.W1, 0.0), kg_cargo),
+                ("Fuel + tanks below deck", (1 - frac_deck) * (tanks + fuel_now) + aux_fuel * fuel_fill,
+                 kg_fuel_below),
+                ("Fuel + tanks on deck", frac_deck * (tanks + fuel_now), kg_fuel_deck),
+                ("Stores & misc.", stores * stores_fill, kg_stores),
+            ]
+
+        # Free surface: deck LH2 cylinders computed (worst case, surface as
+        # wide as the tank); below-deck tanks via a fixed allowance.
+        fsm_deck = 0.0
+        if frac_deck > 0:
+            rho_fuel = fuel_data["Density"] / 1000.0              # t/m3
+            fsm_deck = rho_fuel * self.deck_block_len * self.deck_tank_rows * dt ** 3 / 12.0
+
+        windage_super = ship_data.get("Windage_Factor", 0.2) * L * D
+        h_super = windage_super / L                               # uniform band over L
+        a_tanks = self.deck_block_len * dt if frac_deck > 0 else 0.0
+        C7 = 0.67 * CB + 0.32
+        C8 = 1.1 * CB - 0.12
+        g = 9.81
+        req = self.m_GMRequired
+
+        for name, fuel_fill, stores_fill in (("Departure", 1.0, 1.0), ("Arrival", 0.1, 0.1)):
+            items = groups(fuel_fill, stores_fill)
+            disp = sum(m for _, m, _ in items)
+            if disp <= 0:
+                self.stability_failures.append(f"{name}: non-positive displacement")
+                continue
+            kg = sum(m * z for _, m, z in items) / disp
+            t_c = T * disp / self.M                               # parallel-sided
+            kb = t_c * (5.0 * C7 - 2.0 * CB) / (6.0 * C7)
+            bm = C8 * B * B / (12.0 * t_c * CB)
+            fsc = self.m_FSCAllowance + fsm_deck / disp
+            gm = kb + bm - kg - fsc
+            phi_de = math.degrees(math.atan(2.0 * max(D - t_c, 0.0) / B))
+
+            def gz(phi_deg, gm=gm, bm=bm):
+                ph = math.radians(phi_deg)
+                return math.sin(ph) * (gm + 0.5 * bm * math.tan(ph) ** 2)
+
+            def area(to_deg, gz=gz):
+                angles = np.linspace(0.0, to_deg, 61)
+                return float(np.trapezoid([gz(a) for a in angles], np.radians(angles)))
+
+            # IS Code 2008 2.2 criteria, only where the wall-sided curve holds.
+            crit = {f"GM >= {req:.2f} m": (gm >= req, f"{gm:.2f} m")}
+            checks = (
+                ("Area 0-30 deg >= 0.055 m.rad", 30.0, lambda: (area(30.0) >= 0.055, f"{area(30.0):.3f}")),
+                ("GZ at 30 deg >= 0.20 m", 30.0, lambda: (gz(30.0) >= 0.20, f"{gz(30.0):.2f} m")),
+                ("Area 0-40 deg >= 0.090 m.rad", 40.0, lambda: (area(40.0) >= 0.090, f"{area(40.0):.3f}")),
+                ("Area 30-40 deg >= 0.030 m.rad", 40.0,
+                 lambda: (area(40.0) - area(30.0) >= 0.030, f"{area(40.0) - area(30.0):.3f}")),
+            )
+            for label, need_deg, check in checks:
+                crit[label] = check() if phi_de >= need_deg else (None, "n/a: beyond deck-edge immersion")
+
+            # Steady wind heel (IS Code weather criterion lever, 504 Pa).
+            freeboard = max(D - t_c, 0.0)
+            a_hull, z_hull = L * freeboard, freeboard / 2.0
+            a_sup, z_sup = windage_super, freeboard + h_super / 2.0
+            a_tk, z_tk = a_tanks, freeboard + self.m_DeckTankSupport + dt / 2.0
+            a_wind = a_hull + a_sup + a_tk
+            z_wind = ((a_hull * z_hull + a_sup * z_sup + a_tk * z_tk) / a_wind if a_wind > 0 else 0.0) + t_c / 2.0
+            lw1 = 504.0 * a_wind * z_wind / (1000.0 * g * disp)
+            heel = math.degrees(math.atan(lw1 / gm)) if gm > 0 else 90.0
+            heel_limit = min(16.0, 0.8 * phi_de)
+            crit[f"Wind heel <= {heel_limit:.1f} deg"] = (heel <= heel_limit, f"{heel:.1f} deg")
+
+            self.stab_conditions[name] = dict(
+                disp=disp, T=t_c, KB=kb, BM=bm, KG=kg, FSC=fsc, GM=gm, phi_de=phi_de,
+                gz10=gz(10.0) if phi_de >= 10.0 else float("nan"),
+                gz20=gz(20.0) if phi_de >= 20.0 else float("nan"),
+                gz_de=gz(phi_de), area_to=area(min(30.0, phi_de)),
+                area_limit=min(30.0, phi_de), wind_area=a_wind, wind_lever=lw1, wind_heel=heel,
+                heel_limit=heel_limit, criteria=crit)
+            if name == "Departure":
+                self.stab_groups = [(g_name, m, z) for g_name, m, z in items if m > 0]
+            for label, (passed, value) in crit.items():
+                if passed is False:
+                    self.stability_failures.append(f"{name}: {label} (got {value})")
+
+        # Deck fit is an arrangement check, not a stability criterion: a wider
+        # beam makes the hull shorter and fuller (more fuel, less deck), so
+        # auto-beam cannot cure it. Reported separately.
+        self.deck_fit_warning = ""
+        if frac_deck > 0 and not self.deck_tanks_fit:
+            self.deck_fit_warning = (f"Deck tanks do not fit: {self.deck_block_len:.1f} m of deck needed, "
+                                     f"{self.deck_len_avail:.1f} m usable")
+        gms = [c["GM"] for c in self.stab_conditions.values()]
+        self.GM_min = min(gms) if gms else float("nan")
+        self.wind_heel_max = max((c["wind_heel"] for c in self.stab_conditions.values()), default=float("nan"))
+        self.stability_ok = bool(gms) and not self.stability_failures
+        return self.stability_ok
+
+    def _deck_frac(self):
+        """Fraction of the fuel (and its tanks) carried above deck: the
+        deck-H2 share for hydrogen fuels, 0 otherwise."""
+        if not self.m_DeckH2 or "Hydrogen" not in self.engine_name:
+            return 0.0
+        return min(max(self.m_DeckH2Pct, 0.0), 100.0) / 100.0
+
+    def _deck_tank_layout(self):
+        """Size the above-deck LH2 tanks as horizontal cylinders in rows
+        across the beam and work out what they cost in deck space.
+
+        Sets deck_mass (fuel + tanks on deck, t), M_deck_foundations, and the
+        layout used by the stability and TEU checks."""
+        frac = self._deck_frac()
+        self.deck_mass = 0.0
+        self.M_deck_foundations = 0.0
+        self.deck_tank_rows = 0
+        self.deck_block_len = 0.0
+        self.deck_len_avail = 0.0
+        self.deck_tanks_fit = True
+        self.deck_footprint = 0.0
+        self.deck_teu_lost = 0
+        self.deck_tank_volume = 0.0
+        if frac <= 0:
+            return
+        fuel_data = FuelConfig.get(self.engine_name)
+        raw = getattr(self, 'raw_fuel_mass', 0.0) or 0.0
+        self.deck_mass = frac * (getattr(self, 'calculated_fuel_mass', 0.0) or 0.0)
+        self.M_deck_foundations = self.deck_mass * self.m_DeckFoundationPct / 100.0
+        if fuel_data["Density"] > 0:
+            self.deck_tank_volume = frac * raw * 1000.0 / fuel_data["Density"] * fuel_data["VolFactor"]
+        dt = max(self.m_DeckTankDia, 0.1)
+        self.deck_tank_rows = max(1, int(0.9 * self.B // (dt + 1.0)))
+        self.deck_block_len = self.deck_tank_volume / (math.pi * dt ** 2 / 4.0 * self.deck_tank_rows)
+        self.deck_len_avail = self.m_DeckUsableFrac * self.L1
+        self.deck_tanks_fit = self.deck_block_len <= self.deck_len_avail
+        self.deck_footprint = self.deck_block_len * self.deck_tank_rows * (dt + 1.0)
+        if ShipConfig.get(self.ship_name)["ID"] == 4:   # container ship: lost deck slots
+            self.deck_teu_lost = int(self.deck_footprint // 14.77) * int(self.m_DeckTEUTiers)
 
     def _stability(self):
         """Port of Sub_stability"""
@@ -1669,6 +1930,10 @@ class ShipDesignSolver:
                 self.raw_fuel_mass = raw_fuel_mass_tonnes    # ADDED: pure fuel only, no tank
                 W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]  # fuel + tank steel mass
                 self.calculated_fuel_mass = W3
+
+        # Above-deck LH2: tank layout, and deck foundations added to steel.
+        self._deck_tank_layout()
+        self.M1 += self.M_deck_foundations
 
         # Additional shaft lines (twin screw): allowance per kW they carry.
         self.M_shafting = 0.0
@@ -2713,6 +2978,11 @@ class ShipDesignSolver:
                 vol_fuel = (raw_mass * 1000.0) / fuel_data["Density"] * fuel_data["VolFactor"]
             else:
                 vol_fuel = 0.0
+            # Below-deck fuel volume only; deck tanks are reported apart.
+            deck_frac = self._deck_frac()
+            self.vol_fuel_deck = vol_fuel * deck_frac
+            if deck_frac > 0:
+                vol_fuel *= (1.0 - deck_frac)
 
             vol_mach = (self.P2 * 0.7457) * 0.4
             lightship = (getattr(self, 'M1', 0.0) +

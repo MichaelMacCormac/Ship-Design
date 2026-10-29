@@ -231,3 +231,11 @@ class TestPropOptions(unittest.TestCase):
     def test_names_unchanged_when_props_match(self):
         r = mc.run_comparison(base_inputs(), A, B, {}, n=1)
         self.assertEqual((r.name_a, r.name_b), (A, B))
+
+
+class TestStabilityInSummary(unittest.TestCase):
+    def test_base_case_stability_reported(self):
+        r = mc.run_comparison(base_inputs(), A, B, {}, n=1)
+        self.assertIsNotNone(r.stability_a)
+        self.assertTrue(r.stability_a[1])
+        self.assertIn("Stability (base case):", r.summary())

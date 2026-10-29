@@ -21,6 +21,15 @@ A multitude of alternative fuel types. The volume constraints account for specif
 * **Alternative:** Hydrogen (ICE & Fuel Cell), Ammonia, Methanol, Battery Electric.
 * **Nuclear:** Dedicated modeling for Small Modular reactors, including core life, reactor specific mass ($kg/kW$) and decommissioning fund analysis.
 
+* **Above-deck Hydrogen:** For hydrogen fuels, some or all of the LH2 and its tanks can be carried on deck as horizontal cylinders. This frees hull volume for the volume limiter, but the tanks sit high. The model checks that the tanks fit the usable deck length, adds deck foundations to steel weight, and for container ships deducts the deck TEU slots the tanks occupy.
+
+### 2a. Stability
+* **Weight-group KG build-up:** steel (Kupras), outfit and machinery (Watson), cargo, stores, and fuel and tanks below or above deck, with a SOLAS double-bottom height.
+* **Loading conditions:** departure (100% fuel and stores) and arrival (10%).
+* **Checks per condition:** free-surface correction, GM against a required minimum, wall-sided GZ up to deck-edge immersion (IS-2008 area criteria only where that curve is valid, otherwise shown as n/a), and the IS Code steady wind heel (504 Pa) including the deck tanks' windage.
+* **Optional "Widen beam to meet stability":** re-solves with a wider beam until the checks pass.
+* Several inputs (cargo KG, windage, free-surface allowance, tank geometry) are placeholders to edit.
+
 ### 3. Economic & Commercial Modeling
 * **RFR Calculation:** Precise calculation of **Required Freight Rate** (tonne or TEU) to break even.
 * **Year-by-Year Cash Flow:** RFR is derived from a discounted yearly cash flow (loan repayments, OPEX, maintenance, fuel, carbon tax, nuclear core/decommissioning, premium income). Ship life can differ from the loan term, and the full table exports to CSV.

@@ -73,6 +73,8 @@ LABEL_MAP = {
     "VolMachinery(m3)":      "Machinery Volume (m\u00B3)",
     "VolStores(m3)":         "Stores Volume (m\u00B3)",
     "VolUtilisation%":       "Volume Utilisation (%)",
+    "GMmin(m)":              "Minimum Fluid GM (m)",
+    "WindHeel(deg)":         "Steady Wind Heel (deg)",
 }
 
 
@@ -1056,6 +1058,61 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         prop_group.setLayout(prop_layout)
         left_col.addWidget(prop_group)
 
+        # --- Stability checks ---
+        stab_group = QGroupBox("Stability")
+        stab_layout = QGridLayout()
+        self.edit_gm_req = QLineEdit(f"{self.m_GMRequired:g}")
+        self.edit_gm_req.setToolTip("Minimum fluid GM in departure and arrival (IMO IS Code 2008: 0.15 m).")
+        self.edit_fsc = QLineEdit(f"{self.m_FSCAllowance:g}")
+        self.edit_fsc.setToolTip("Free-surface allowance for below-deck tanks, m (placeholder).\n"
+                                 "Deck LH2 tank free surface is computed from the tank layout.")
+        self.check_auto_beam = QCheckBox("Widen beam to meet stability")
+        self.check_auto_beam.setToolTip("If GM, the IS-2008 checks or the wind heel check fail, re-solve with\n"
+                                        "the beam widened 3% per step (up to 30 steps) until they pass.")
+        stab_layout.addWidget(QLabel("Required GM (m):"), 0, 0)
+        stab_layout.addWidget(self.edit_gm_req, 0, 1)
+        stab_layout.addWidget(QLabel("FSC allowance (m):"), 0, 2)
+        stab_layout.addWidget(self.edit_fsc, 0, 3)
+        stab_layout.addWidget(self.check_auto_beam, 1, 0, 1, 4)
+        stab_group.setLayout(stab_layout)
+        left_col.addWidget(stab_group)
+
+        # --- Above-deck hydrogen ---
+        self.group_deck_h2 = QGroupBox("Above-deck hydrogen (LH2 fuels only)")
+        deck_layout = QGridLayout()
+        self.check_deck_h2 = QCheckBox("Carry LH2 tanks above deck")
+        self.check_deck_h2.setToolTip("Frees hull volume, but the tanks (about 7x the fuel mass) sit high:\n"
+                                      "see the Stability block in the results.")
+        self.check_deck_h2.toggled.connect(self._reset_dlg)
+        self.edit_deck_pct = QLineEdit(f"{self.m_DeckH2Pct:g}")
+        self.edit_deck_dia = QLineEdit(f"{self.m_DeckTankDia:g}")
+        self.edit_deck_dia.setToolTip("Horizontal cylinder diameter (placeholder).")
+        self.edit_deck_support = QLineEdit(f"{self.m_DeckTankSupport:g}")
+        self.edit_deck_support.setToolTip("Saddle height of the tank bottom above deck (placeholder).")
+        self.edit_deck_usable = QLineEdit(f"{self.m_DeckUsableFrac:g}")
+        self.edit_deck_usable.setToolTip("Fraction of Lbp available for deck tanks (placeholder).")
+        self.edit_deck_found = QLineEdit(f"{self.m_DeckFoundationPct:g}")
+        self.edit_deck_found.setToolTip("Deck structure and tank foundations, % of deck tank + fuel weight\n"
+                                        "(placeholder). Added to steel weight and cost.")
+        self.edit_deck_tiers = QLineEdit(f"{self.m_DeckTEUTiers:g}")
+        self.edit_deck_tiers.setToolTip("Container ships: container tiers lost above each deck slot the tanks\n"
+                                        "occupy (placeholder).")
+        deck_layout.addWidget(self.check_deck_h2, 0, 0, 1, 2)
+        deck_layout.addWidget(QLabel("% of LH2 on deck:"), 0, 2)
+        deck_layout.addWidget(self.edit_deck_pct, 0, 3)
+        deck_layout.addWidget(QLabel("Tank diameter (m):"), 1, 0)
+        deck_layout.addWidget(self.edit_deck_dia, 1, 1)
+        deck_layout.addWidget(QLabel("Support height (m):"), 1, 2)
+        deck_layout.addWidget(self.edit_deck_support, 1, 3)
+        deck_layout.addWidget(QLabel("Usable deck (frac. L):"), 2, 0)
+        deck_layout.addWidget(self.edit_deck_usable, 2, 1)
+        deck_layout.addWidget(QLabel("Foundations (%):"), 2, 2)
+        deck_layout.addWidget(self.edit_deck_found, 2, 3)
+        deck_layout.addWidget(QLabel("TEU tiers lost:"), 3, 0)
+        deck_layout.addWidget(self.edit_deck_tiers, 3, 1)
+        self.group_deck_h2.setLayout(deck_layout)
+        left_col.addWidget(self.group_deck_h2)
+
         esd_group = QGroupBox("Energy Saving Devices (ESD)")
         esd_layout = QGridLayout()
         
@@ -1366,7 +1423,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             "CargoDW(t)", "TotalDW(t)", "ServicePower(kW)", "InstalledPower(kW)",
             "EEDI(gCO2/t.nm)", "AttainedCII",
             "FuelVolume(m3)", "FuelVol%Hull", "VolCargo(m3)", "VolFuel(m3)",
-            "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%"
+            "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%",
+            "GMmin(m)", "WindHeel(deg)"
         ])
         range_layout.addWidget(self.combo_param_y, 7, 1, 1, 3)
 
@@ -1440,7 +1498,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             "CargoDW(t)", "TotalDW(t)", "ServicePower(kW)", "InstalledPower(kW)",
             "EEDI(gCO2/t.nm)", "AttainedCII",
             "FuelVolume(m3)", "FuelVol%Hull", "VolCargo(m3)", "VolFuel(m3)",
-            "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%"
+            "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%",
+            "GMmin(m)", "WindHeel(deg)"
         ])
         comp_layout.addWidget(self.combo_battle_y, 4, 1)
 
@@ -1658,6 +1717,17 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             self.m_ShaftMassPerKW = _safe_float(self.edit_shaft_mass, default=5.0)
             self.m_ShaftCostPerKW = _safe_float(self.edit_shaft_cost, default=150.0)
 
+            self.m_GMRequired = _safe_float(self.edit_gm_req, default=0.15)
+            self.m_FSCAllowance = _safe_float(self.edit_fsc, default=0.10)
+            self.m_AutoBeam = self.check_auto_beam.isChecked()
+            self.m_DeckH2 = self.check_deck_h2.isChecked()
+            self.m_DeckH2Pct = _safe_float(self.edit_deck_pct, default=100.0)
+            self.m_DeckTankDia = _safe_float(self.edit_deck_dia, default=8.0)
+            self.m_DeckTankSupport = _safe_float(self.edit_deck_support, default=1.5)
+            self.m_DeckUsableFrac = _safe_float(self.edit_deck_usable, default=0.6)
+            self.m_DeckFoundationPct = _safe_float(self.edit_deck_found, default=10.0)
+            self.m_DeckTEUTiers = _safe_float(self.edit_deck_tiers, default=4.0)
+
             # Sensitivity & retrofit knobs (chapter 5 additions).
             self.m_MethaneSlip   = _safe_float(self.edit_methane_slip,   default=0.0)
             self.m_ResUncertPct  = _safe_float(self.edit_res_uncert,     default=0.0)
@@ -1792,6 +1862,16 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.edit_twin_k2.setText(f"{self.m_TwinK2:.6g}")
         self.edit_shaft_mass.setText(f"{self.m_ShaftMassPerKW:.6g}")
         self.edit_shaft_cost.setText(f"{self.m_ShaftCostPerKW:.6g}")
+        self.edit_gm_req.setText(f"{self.m_GMRequired:.6g}")
+        self.edit_fsc.setText(f"{self.m_FSCAllowance:.6g}")
+        self.check_auto_beam.setChecked(self.m_AutoBeam)
+        self.check_deck_h2.setChecked(self.m_DeckH2)
+        self.edit_deck_pct.setText(f"{self.m_DeckH2Pct:.6g}")
+        self.edit_deck_dia.setText(f"{self.m_DeckTankDia:.6g}")
+        self.edit_deck_support.setText(f"{self.m_DeckTankSupport:.6g}")
+        self.edit_deck_usable.setText(f"{self.m_DeckUsableFrac:.6g}")
+        self.edit_deck_found.setText(f"{self.m_DeckFoundationPct:.6g}")
+        self.edit_deck_tiers.setText(f"{self.m_DeckTEUTiers:.6g}")
 
         self.check_vol_limit.setChecked(self.m_VolumeLimit)
         
@@ -1960,6 +2040,7 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             "FuelVolume(m3)", "FuelVol%Hull",
             "VolExpansionIters",
             "AttainedCII", "RequiredCII", "CIIRating",
+            "GMmin(m)", "WindHeel(deg)", "StabilityOK", "DeckTEULost",
             "EEDI(gCO2/t.nm)",
         ]
         
@@ -2125,6 +2206,14 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                             f"{getattr(self, 'attained_cii', 0.0):.3f}",
                             f"{getattr(self, 'required_cii', 0.0):.3f}",
                             getattr(self, 'cii_rating', 'N/A'),
+                        ])
+
+                        # ----- Stability (departure/arrival checks) -----
+                        row.extend([
+                            f"{getattr(self, 'GM_min', float('nan')):.3f}",
+                            f"{getattr(self, 'wind_heel_max', float('nan')):.2f}",
+                            "YES" if getattr(self, 'stability_ok', False) else "NO",
+                            f"{getattr(self, 'deck_teu_lost', 0)}",
                         ])
 
                         # ----- EEDI (computed inline; matches battle code) -----
@@ -2378,6 +2467,10 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                     return getattr(self, 'vol_stores', np.nan)
                 elif name == "VolUtilisation%":
                     return getattr(self, 'vol_utilisation_pct', np.nan)
+                elif name == "GMmin(m)":
+                    return getattr(self, 'GM_min', np.nan)
+                elif name == "WindHeel(deg)":
+                    return getattr(self, 'wind_heel_max', np.nan)
                 
                 return 0.0
 
@@ -2639,6 +2732,10 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 return getattr(self, 'vol_stores', np.nan)
             elif name == "VolUtilisation%":
                 return getattr(self, 'vol_utilisation_pct', np.nan)
+            elif name == "GMmin(m)":
+                return getattr(self, 'GM_min', np.nan)
+            elif name == "WindHeel(deg)":
+                return getattr(self, 'wind_heel_max', np.nan)
             return 0.0
 
         try:
@@ -2873,6 +2970,55 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             
         except Exception as e:
             self._show_error(f"Failed to write CSV file: {e}")
+
+    def _stability_report_lines(self):
+        """Stability block for the results: deck-tank layout, KG build-up,
+        per-condition checks and any failures."""
+        conds = getattr(self, 'stab_conditions', None)
+        if not conds:
+            return []
+        out = []
+        if not self.stability_ok:
+            out += ["", "   !!! STABILITY CHECK FAILED !!!"]
+            out += [f"   - {f}" for f in self.stability_failures]
+        if getattr(self, 'deck_fit_warning', ""):
+            out += ["", f"   !!! {self.deck_fit_warning} !!!"]
+
+        if self._deck_frac() > 0:
+            out.append("  ------- Above-deck LH2 tanks:")
+            out.append(f"   On deck: {self._deck_frac() * 100:.0f}% of LH2, {self.deck_mass:,.0f} t "
+                       f"(fuel + tanks), {self.deck_tank_volume:,.0f} m3")
+            out.append(f"   {self.deck_tank_rows} row(s) of {self.m_DeckTankDia:g} m cylinders, "
+                       f"{self.deck_block_len:.1f} m long ({self.deck_len_avail:.1f} m usable): "
+                       f"{'fits' if self.deck_tanks_fit else 'DOES NOT FIT'}")
+            out.append(f"   Deck foundations = {self.M_deck_foundations:,.0f} t")
+            if self.deck_teu_lost:
+                out.append(f"   Deck TEU slots lost = {self.deck_teu_lost:,}")
+        elif self.m_DeckH2:
+            out.append("   (Above-deck LH2 is on but the engine is not a hydrogen fuel: ignored.)")
+
+        out.append("  ------- Stability (departure KG build-up):")
+        out.append(f"   {'Item':26s}{'Mass (t)':>11s}{'KG (m)':>9s}")
+        for name, mass, kg in self.stab_groups:
+            out.append(f"   {name:26s}{mass:11,.0f}{kg:9.2f}")
+        for name, c in conds.items():
+            out.append(f"   {name}: Disp {c['disp']:,.0f} t  T {c['T']:.2f} m")
+            out.append(f"     KB {c['KB']:.2f}  BM {c['BM']:.2f}  KG {c['KG']:.2f}  FSC {c['FSC']:.2f}"
+                       f"  GM {c['GM']:.2f} m")
+            gz_at = lambda v: "n/a" if math.isnan(v) else f"{v:.2f} m"
+            out.append(f"     Deck-edge immersion {c['phi_de']:.1f} deg (GZ {c['gz_de']:.2f} m); "
+                       f"GZ 10 deg {gz_at(c['gz10'])}, 20 deg {gz_at(c['gz20'])}; "
+                       f"area 0-{c['area_limit']:.0f} deg {c['area_to']:.3f} m.rad")
+            out.append(f"     Wind heel {c['wind_heel']:.1f} deg (lever {c['wind_lever']:.3f} m, "
+                       f"area {c['wind_area']:,.0f} m2)")
+            for label, (passed, value) in c['criteria'].items():
+                flag = "PASS" if passed else ("FAIL" if passed is False else "n/a ")
+                out.append(f"     [{flag}] {label}: {value}")
+        if getattr(self, 'auto_beam_steps', 0):
+            out.append(f"   Auto-beam: B widened {self.B_original:.2f} -> {self.B:.2f} m "
+                       f"in {self.auto_beam_steps} step(s)")
+        out.append("   (Wall-sided GZ is valid only to deck-edge immersion; criteria beyond it are n/a.)")
+        return out
 
     def on_compare_props(self):
         """Solve the current form with single and twin screw and show both."""
@@ -3270,6 +3416,14 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         for w in (self.edit_twin_app, self.edit_twin_k2, self.edit_shaft_mass):
             w.setEnabled(is_twin)
         self.edit_shaft_cost.setEnabled(is_twin and is_econom_on)
+
+        is_h2 = "Hydrogen" in self.combo_engine.currentText()
+        self.group_deck_h2.setEnabled(is_h2)
+        deck_on = is_h2 and self.check_deck_h2.isChecked()
+        for w in (self.edit_deck_pct, self.edit_deck_dia, self.edit_deck_support,
+                  self.edit_deck_usable, self.edit_deck_found):
+            w.setEnabled(deck_on)
+        self.edit_deck_tiers.setEnabled(deck_on and ship_id == 4)
         self.btn_export_cashflow.setEnabled(
             is_econom_on and self.CalculatedOk and getattr(self, 'cash_flow', None) is not None)
 
@@ -3674,7 +3828,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             if opt['ommass']: output_lines.append(f"   Machy mass(tonnes) = {int(self.M3 + 0.5):5d}")
             if opt['ofbd']: output_lines.append(f"   Freeboard(m) = {self.F5:5.2f}")
             if opt['oagm']: output_lines.append(f"   Approx. GM(m) = {self.G6:5.1f}")
-            
+            output_lines.extend(self._stability_report_lines())
+
             if self.m_Econom and ob2:
                 output_lines.append("  ------- Economic analysis:")
                 if opt['ovyear']: output_lines.append(f"   Voyages/year = {self.V7:6.3f}")

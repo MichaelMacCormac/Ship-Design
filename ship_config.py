@@ -197,6 +197,8 @@ class ShipConfig:
             "Steel_K1": 0.032,
             "Outfit_Intercept": 0.37, "Outfit_Slope": 1765.0,
             "Stability_Factor": 0.63,
+            "Cargo_KG_D": 0.52,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 0.15,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.10,
             "Cargo_Density": 0.85,
@@ -208,6 +210,8 @@ class ShipConfig:
             "Steel_K1": 0.032,
             "Outfit_Intercept": 0.32, "Outfit_Slope": 1765.0,
             "Stability_Factor": 0.57,
+            "Cargo_KG_D": 0.5,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 0.15,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.15,
             "Cargo_Density": 1.50,
@@ -219,6 +223,8 @@ class ShipConfig:
             "Steel_K1": 0.034,
             "Outfit_Intercept": 0.41, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.62,
+            "Cargo_KG_D": 0.55,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 0.2,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Deadweight",
             "Profile_Factor": 1.30,
             "Cargo_Density": 0.60,
@@ -230,6 +236,8 @@ class ShipConfig:
             "Steel_K1": 0.036,
             "Outfit_Intercept": 0.45, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.60,
+            "Cargo_KG_D": 0.75,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 0.8,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Volume",
             "Profile_Factor": 1.40,
             "Cargo_Density": 0.0,
@@ -241,6 +249,8 @@ class ShipConfig:
             "Steel_K1": 0.045,
             "Outfit_Intercept": 0.80, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.70,
+            "Cargo_KG_D": 1.3,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 1.5,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Volume",
             "Profile_Factor": 2.40,
             "Cargo_Density": 0.0,
@@ -252,6 +262,8 @@ class ShipConfig:
             "Steel_K1": 0.042,
             "Outfit_Intercept": 0.90, "Outfit_Slope": 0.0,
             "Stability_Factor": 0.68,
+            "Cargo_KG_D": 1.2,      # cargo KG / depth, loaded (placeholder)
+            "Windage_Factor": 0.8,  # lateral area above deck / (L*D) (placeholder)
             "Design_Type": "Volume",
             "Profile_Factor": 2.20,
             "Cargo_Density": 0.0,

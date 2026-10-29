@@ -318,3 +318,124 @@ class TestTwinScrew(unittest.TestCase):
         s, ok = solve(ship_name="Tanker", m_NumProps=3)
         self.assertFalse(ok)
         self.assertTrue(any("propellers" in e for e in s.solver_errors))
+
+
+H2FC = dict(engine_name="Hydrogen (Fuel Cell)", m_LHV=120.0, m_Fuel=4000.0)
+
+
+def solve_ign(**kw):
+    s = ShipDesignSolver().set_inputs(**kw)
+    s.ignspd = s.ignpth = True
+    return s, s.solve()
+
+
+class TestStability(unittest.TestCase):
+    def test_kg_groups_follow_formulas(self):
+        s, ok = solve(ship_name="Tanker")
+        self.assertTrue(ok)
+        L, B, D, CB = s.L1, s.B, s.D, s.C
+        hdb = min(max(B / 20.0, 0.76), 2.0)
+        expect = {
+            "Hull steel": 0.01 * D * (46.6 + 0.135 * (0.81 - CB) * (L / D) ** 2) + 0.008 * D * (L / B - 6.5),
+            "Outfit": D + 1.25 + 0.01 * (L - 125.0),
+            "Machinery": hdb + 0.35 * (D - hdb),
+            "Cargo": 0.52 * D,
+            "Fuel + tanks below deck": hdb / 2.0,
+        }
+        got = {name: kg for name, _, kg in s.stab_groups}
+        for name, kg in expect.items():
+            self.assertAlmostEqual(got[name], kg, places=9, msg=name)
+
+    def test_departure_displacement_is_design_displacement(self):
+        s, ok = solve(ship_name="Tanker")
+        dep, arr = s.stab_conditions["Departure"], s.stab_conditions["Arrival"]
+        self.assertAlmostEqual(dep["disp"], s.M, places=6)
+        self.assertAlmostEqual(dep["T"], s.T, places=9)
+        self.assertLess(arr["T"], dep["T"])
+
+    def test_gm_and_gz_formulas(self):
+        s, ok = solve(ship_name="Tanker")
+        c = s.stab_conditions["Arrival"]
+        C7, C8 = 0.67 * s.C + 0.32, 1.1 * s.C - 0.12
+        kb = c["T"] * (5 * C7 - 2 * s.C) / (6 * C7)
+        bm = C8 * s.B ** 2 / (12 * c["T"] * s.C)
+        self.assertAlmostEqual(c["GM"], kb + bm - c["KG"] - c["FSC"], places=9)
+        ph = math.radians(10.0)
+        self.assertAlmostEqual(c["gz10"], math.sin(ph) * (c["GM"] + 0.5 * bm * math.tan(ph) ** 2), places=9)
+
+    def test_default_diesel_tanker_is_stable_and_plausible(self):
+        s, ok = solve(ship_name="Tanker")
+        self.assertTrue(s.stability_ok, s.stability_failures)
+        self.assertTrue(2.0 < s.GM_min < 8.0, s.GM_min)
+
+    def test_criteria_beyond_deck_edge_not_assessed(self):
+        s, ok = solve(ship_name="Tanker")
+        c = s.stab_conditions["Departure"]
+        self.assertLess(c["phi_de"], 30.0)
+        self.assertIsNone(c["criteria"]["Area 0-30 deg >= 0.055 m.rad"][0])
+        self.assertTrue(math.isnan(c["gz20"]))
+
+    def test_wind_lever_formula(self):
+        s, ok = solve(ship_name="Container Ship")
+        c = s.stab_conditions["Departure"]
+        fb = s.D - c["T"]
+        a_sup = 0.8 * s.L1 * s.D
+        a = s.L1 * fb + a_sup
+        z = (s.L1 * fb * fb / 2 + a_sup * (fb + a_sup / s.L1 / 2)) / a + c["T"] / 2
+        self.assertAlmostEqual(c["wind_lever"], 504 * a * z / (1000 * 9.81 * c["disp"]), places=9)
+
+    def test_gm_requirement_failure_reported(self):
+        s, ok = solve(ship_name="Container Ship", m_GMRequired=10.0)
+        self.assertTrue(ok)
+        self.assertFalse(s.stability_ok)
+        self.assertTrue(any("GM >= 10.00 m" in f for f in s.stability_failures))
+
+    def test_auto_beam_widens_until_gm_met_and_restores_flags(self):
+        s, ok = solve_ign(ship_name="Container Ship", m_GMRequired=3.0, m_AutoBeam=True, m_Lbratio=True,
+                          m_LbratioV=6.5)
+        self.assertTrue(ok)
+        self.assertTrue(s.stability_ok, s.stability_failures)
+        self.assertGreater(s.auto_beam_steps, 0)
+        self.assertGreater(s.B, s.B_original)
+        self.assertGreaterEqual(s.GM_min, 3.0)
+        self.assertEqual((s.m_Lbratio, s.m_Bvalue, s.m_LbratioV), (True, False, 6.5))
+
+
+class TestDeckHydrogen(unittest.TestCase):
+    def test_deck_tanks_raise_kg_and_free_hull_volume(self):
+        below, ok1 = solve_ign(ship_name="Tanker", m_Range=5000.0, **H2FC)
+        deck, ok2 = solve_ign(ship_name="Tanker", m_Range=5000.0, m_DeckH2=True, **H2FC)
+        self.assertTrue(ok1 and ok2)
+        self.assertLess(deck.vol_fuel, below.vol_fuel)
+        self.assertGreater(deck.vol_fuel_deck, 0.0)
+        self.assertGreater(deck.stab_conditions["Departure"]["KG"], below.stab_conditions["Departure"]["KG"])
+        self.assertLess(deck.GM_min, below.GM_min)
+        self.assertLessEqual(deck.vol_expansion_iters, below.vol_expansion_iters)
+        self.assertTrue(deck.deck_tanks_fit)
+        self.assertAlmostEqual(deck.M_deck_foundations, 0.10 * deck.deck_mass, places=9)
+        self.assertGreater(deck.stab_conditions["Departure"]["FSC"], deck.m_FSCAllowance)
+
+    def test_deck_tanks_add_windage(self):
+        below, _ = solve_ign(ship_name="Tanker", m_Range=5000.0, **H2FC)
+        deck, _ = solve_ign(ship_name="Tanker", m_Range=5000.0, m_DeckH2=True, **H2FC)
+        self.assertGreater(deck.stab_conditions["Departure"]["wind_area"],
+                           below.stab_conditions["Departure"]["wind_area"])
+
+    def test_container_ship_loses_deck_teu(self):
+        s, ok = solve_ign(ship_name="Container Ship", m_DeckH2=True, m_Range=6000.0, **H2FC)
+        self.assertTrue(ok)
+        expect = int(s.deck_footprint // 14.77) * 4
+        self.assertEqual(s.deck_teu_lost, expect)
+        self.assertGreater(expect, 0)
+
+    def test_tanks_that_do_not_fit_are_flagged(self):
+        s, ok = solve_ign(ship_name="Tanker", m_DeckH2=True, **H2FC)   # 12,000 nm
+        self.assertTrue(ok)
+        self.assertFalse(s.deck_tanks_fit)
+        self.assertIn("do not fit", s.deck_fit_warning)
+
+    def test_ignored_for_non_hydrogen(self):
+        off, _ = solve(ship_name="Tanker")
+        on, _ = solve(ship_name="Tanker", m_DeckH2=True)
+        self.assertEqual((off.Rf, off.GM_min, off.L1), (on.Rf, on.GM_min, on.L1))
+        self.assertEqual(on.deck_mass, 0.0)
