@@ -1417,8 +1417,16 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         battle_btn_layout = QHBoxLayout()
         battle_btn_layout.addWidget(self.btn_run_battle)
         battle_btn_layout.addWidget(self.btn_export_battle)
-        
+
         comp_layout.addLayout(battle_btn_layout, 5, 0, 1, 2)
+
+        self.btn_monte_carlo = QPushButton("Monte Carlo Comparison...")
+        self.btn_monte_carlo.setToolTip(
+            "Compare two fuels under uncertain prices, carbon tax, finance and capex;\n"
+            "win probability, break-even values and drivers.")
+        self.btn_monte_carlo.clicked.connect(self.on_open_monte_carlo)
+        self.mc_window = None
+        comp_layout.addWidget(self.btn_monte_carlo, 6, 0, 1, 2)
 
         comp_group.setLayout(comp_layout)
         left_col.addWidget(comp_group)
@@ -2817,6 +2825,15 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             
         except Exception as e:
             self._show_error(f"Failed to write CSV file: {e}")
+
+    def on_open_monte_carlo(self):
+        """Opens (or raises) the Monte Carlo fuel comparison window."""
+        from monte_carlo_window import MonteCarloWindow
+        if self.mc_window is None:
+            self.mc_window = MonteCarloWindow(self)
+        self.mc_window.show()
+        self.mc_window.raise_()
+        self.mc_window.activateWindow()
 
     def on_config_price_paths(self):
         """Opens the fuel / carbon price path dialog."""

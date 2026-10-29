@@ -14,6 +14,7 @@ ShipDesViewWidget inherits from this class, copies its widget values onto
 these attributes (_update_ui_to_data) and overrides the reporting hooks
 (_show_error, _log, _warn, _debug_*, _focus_field) with Qt dialogs.
 """
+import copy
 import math
 
 import numpy as np
@@ -91,6 +92,7 @@ class ShipDesignSolver:
         self.m_ResUncertPct = 0.0      # Global Pe multiplier (Holtrop sensitivity)
         self.m_RetrofitMode = False    # If True, machinery cost is discounted
         self.m_RetrofitFactor = 0.40   # Default machinery cost discount
+        self.m_MachineryCostFactor = 1.0  # Multiplier on machinery capex S0 (cost uncertainty)
 
         # Per-run override of fuel_data["Carbon"] (tCO2 / t fuel).  None
         # means "use the FuelConfig value".  Set by the Battle Mode dialog
@@ -296,6 +298,18 @@ class ShipDesignSolver:
                 raise AttributeError(f"Unknown solver input: {name!r}")
             setattr(self, name, value)
         return self
+
+    def input_snapshot(self):
+        """Deep copy of every solver attribute, keyed like a fresh solver.
+
+        Lets a caller capture the current inputs (e.g. the GUI form after
+        _update_ui_to_data) and recreate them on new solvers with
+        set_inputs(**snapshot). Working variables are included too, but
+        solve() re-derives them from the inputs, so they are harmless.
+        """
+        sinks = ("solver_errors", "solver_warnings", "solver_log")
+        keys = [k for k in vars(ShipDesignSolver()) if k not in sinks]
+        return {k: copy.deepcopy(getattr(self, k)) for k in keys if hasattr(self, k)}
 
     def _sync_type_ids(self):
         """Derive Kstype/Ketype (1-based) from ship_name/engine_name, using the
@@ -1179,6 +1193,10 @@ class ShipDesignSolver:
         # Retrofit Mode is on. Also applies to nuclear conversions, though
         # those are obviously hypothetical.
         # ----------------------------------------------------------------
+        # Machinery cost uncertainty (Monte Carlo); 1.0 = the regression value.
+        S0 *= self.m_MachineryCostFactor
+        S0_nuclear *= self.m_MachineryCostFactor
+
         if self.m_RetrofitMode:
             S0 *= self.m_RetrofitFactor
             if self.Ketype == 4:

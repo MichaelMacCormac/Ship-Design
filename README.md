@@ -31,6 +31,8 @@ A multitude of alternative fuel types. The volume constraints account for specif
 * **EEDI:** Automatically calculates the attained Energy Efficiency Design Index against reference baselines.
 * **CII Rating:** Estimates the Carbon Intensity Indicator rating (A to E) based on the operational profile.
 
+* **Monte Carlo Fuel Comparison:** "Monte Carlo Comparison..." (in the comparison group) runs the same ship with two fuels across thousands of sampled futures. Uncertain inputs are fuel prices and escalation (per fuel, optionally correlated), carbon tax and escalation, interest rate, sea days, machinery capex and reactor $/kW. It reports P(fuel B cheaper), RFR and gap percentiles, a break-even map, the per-sample break-even value of any chosen input (e.g. "B wins above a carbon tax of X"), and a tornado chart of the drivers. Shared inputs use common random numbers so the comparison is paired; the samples export to CSV.
+
 ### 5. Advanced Visualisation & Analysis
 * **Battle Mode:** Run head-to-head comparisons of two engine types (e.g., *Nuclear vs. Ammonia*) across a speed range to visualise their economic impacts.
 * **Range Analysis:** Perform 1D or 2D parameter sweeps (e.g., *Speed vs. Block Coefficient*) and export the results to CSV or 3D wireframe plots.
@@ -82,7 +84,8 @@ python main.py
 * `main.py`: Application entry point.
 * `ship_des_view_widget_holtrop.py`: The GUI (`ShipDesViewWidget`), plus range analysis, battle mode, plotting and the text report. It inherits the solver below and copies its form values onto the solver inputs.
 * `ship_solver.py`: `ShipDesignSolver`, the Qt-free physics and economics: the iterative hull solver, resistance (Taylor / Holtrop-Mennen), propeller, masses, volume limiter, costs, EEDI/CII.
-* `economics.py`: The year-by-year cash flow (`build_cash_flow`) and RFR.
+* `economics.py`: The year-by-year cash flow (`build_cash_flow`), RFR and fuel/carbon `PricePath`s.
+* `monte_carlo.py`: Qt-free Monte Carlo fuel comparison (`run_comparison`, distributions, Latin hypercube sampling, break-even search). `monte_carlo_window.py` is its GUI.
 * `ship_config.py`: Static tables: `FuelConfig` (LHV, density, efficiency, mass/volume factors per fuel), `ShipConfig` (per-ship-type constants, EEDI/CII reference lines), `ResistanceMethodConfig`, `EmpiricalBasisConfig`.
 * `RouteDialog`: A popup module used to calculate operational profiles and power factors for specific global trade routes.
 * `tests/`: Headless unit tests (`python -m unittest discover tests`).
