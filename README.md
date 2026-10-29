@@ -23,6 +23,7 @@ A multitude of alternative fuel types. The volume constraints account for specif
 ### 3. Economic & Commercial Modeling
 * **RFR Calculation:** Precise calculation of **Required Freight Rate** (tonne or TEU) to break even.
 * **Year-by-Year Cash Flow:** RFR is derived from a discounted yearly cash flow (loan repayments, OPEX, maintenance, fuel, carbon tax, nuclear core/decommissioning, premium income). Ship life can differ from the loan term, and the full table exports to CSV.
+* **Dynamic Fuel & Carbon Prices:** "Price paths..." sets how the fuel price and carbon tax move from the delivery year onwards: flat, constant %/yr escalation, or calendar-year keyframes (% of base, interpolated). The paths scale the base price fields, so sweeps and battle mode still work. The report shows levelised (PV-weighted) prices, and fuel/carbon escalation are available as sweep parameters.
 * **Carbon Economics:** Integrated **Carbon Tax** modeling to stress-test designs against future regulations.
 * **Cold Chain Analysis:** Detailed auxiliary load analysis for refrigerated cargo (Reefers), including premium freight income calculations.
 

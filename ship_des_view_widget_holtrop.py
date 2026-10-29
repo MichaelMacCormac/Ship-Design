@@ -46,6 +46,8 @@ LABEL_MAP = {
     "Air Lub Eff. (%)":    "Air-Lubrication Saving (%)",
     "Wind Power Sav. (%)": "Wind-Assist Saving (%)",
     "Methane Slip (%)":    "Methane Slip (%)",
+    "Fuel escalation (%/yr)":   "Fuel Price Escalation (%/yr)",
+    "Carbon escalation (%/yr)": "Carbon Tax Escalation (%/yr)",
     # Y-axis (output combo boxes)
     "RFR($/tonne or $/TEU)": "Required Freight Rate",
     "BuildCost(M$)":         "Build Cost (M$)",
@@ -97,6 +99,7 @@ from ship_config import (
     FuelConfig, DEFAULT_FUEL_PRICE, ShipConfig, ResistanceMethodConfig, EmpiricalBasisConfig,
 )
 from ship_solver import ShipDesignSolver
+from economics import PricePath
 
 
 class GraphWindow(QWidget):
@@ -454,6 +457,210 @@ class BattleFuelConfigDialog(QDialog):
                     f"Invalid number entered for {engine}.\n{e}"
                 )
                 return
+        super().accept()
+
+class PricePathDialog(QDialog):
+    """
+    Popup to set how the fuel price and carbon tax move over the ship's life.
+
+    Each price is a path relative to its base value (the main Fuel price and
+    Carbon tax fields): flat, a constant %/yr escalation, or calendar-year
+    keyframes in % of base. On accept, result_fuel / result_carbon hold the
+    PricePath objects and result_year the delivery year.
+    """
+    MODE_LABELS = {"flat": "Flat", "escalation": "Escalation (%/yr)", "keyframes": "Keyframes (% of base)"}
+
+    def __init__(self, fuel_path, carbon_path, delivery_year, ship_life, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Fuel & Carbon Price Paths")
+        self.resize(720, 620)
+        self.ship_life = max(int(ship_life), 1)
+        self.result_fuel = fuel_path
+        self.result_carbon = carbon_path
+        self.result_year = int(delivery_year)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(
+            "Paths scale the base Fuel price and Carbon tax entered on the main form.\n"
+            "Escalation compounds from the delivery year; keyframes are calendar years,\n"
+            "interpolated linearly and held flat before the first / after the last."
+        ))
+
+        top = QHBoxLayout()
+        top.addWidget(QLabel("Delivery year (operating year 1):"))
+        self.edit_year = QLineEdit(str(int(delivery_year)))
+        self.edit_year.setFixedWidth(70)
+        top.addWidget(self.edit_year)
+        top.addWidget(QLabel(f"Ship life: {self.ship_life} years"))
+        top.addStretch()
+        layout.addLayout(top)
+
+        groups = QHBoxLayout()
+        self.fuel_ui = self._build_group("Fuel price", fuel_path)
+        self.carbon_ui = self._build_group("Carbon tax", carbon_path)
+        groups.addWidget(self.fuel_ui["box"])
+        groups.addWidget(self.carbon_ui["box"])
+        layout.addLayout(groups)
+
+        self.canvas = None
+        if FigureCanvas is not None:
+            self.figure = Figure(figsize=(6, 2.4))
+            self.canvas = FigureCanvas(self.figure)
+            layout.addWidget(self.canvas)
+
+        btns = QHBoxLayout()
+        btn_ok = QPushButton("Apply")
+        btn_cancel = QPushButton("Cancel")
+        btn_ok.clicked.connect(self.accept)
+        btn_cancel.clicked.connect(self.reject)
+        btns.addStretch()
+        btns.addWidget(btn_ok)
+        btns.addWidget(btn_cancel)
+        layout.addLayout(btns)
+
+        self.edit_year.textChanged.connect(self._refresh_preview)
+        for ui in (self.fuel_ui, self.carbon_ui):
+            self._on_mode_changed(ui)
+        self._refresh_preview()
+
+    def _build_group(self, title, path):
+        box = QGroupBox(title)
+        grid = QGridLayout(box)
+        combo = QComboBox()
+        for mode in PricePath.MODES:
+            combo.addItem(self.MODE_LABELS[mode], mode)
+        combo.setCurrentIndex(PricePath.MODES.index(path.mode) if path.mode in PricePath.MODES else 0)
+        grid.addWidget(QLabel("Mode:"), 0, 0)
+        grid.addWidget(combo, 0, 1)
+
+        label_esc = QLabel("Escalation (%/yr):")
+        edit_esc = QLineEdit(f"{path.escalation_pct:g}")
+        grid.addWidget(label_esc, 1, 0)
+        grid.addWidget(edit_esc, 1, 1)
+
+        table = QTableWidget(0, 2)
+        table.setHorizontalHeaderLabels(["Year", "% of base"])
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        for year, pct in path.keyframes:
+            self._add_keyframe(table, f"{int(year)}", f"{pct:g}")
+        grid.addWidget(table, 2, 0, 1, 2)
+
+        row_btns = QHBoxLayout()
+        btn_add = QPushButton("Add Year")
+        btn_del = QPushButton("Remove Year")
+        row_btns.addWidget(btn_add)
+        row_btns.addWidget(btn_del)
+        row_btns.addStretch()
+        grid.addLayout(row_btns, 3, 0, 1, 2)
+
+        ui = {"box": box, "combo": combo, "label_esc": label_esc, "edit_esc": edit_esc,
+              "table": table, "btn_add": btn_add, "btn_del": btn_del}
+        combo.currentIndexChanged.connect(lambda _i, u=ui: self._on_mode_changed(u))
+        edit_esc.textChanged.connect(self._refresh_preview)
+        table.itemChanged.connect(self._refresh_preview)
+        btn_add.clicked.connect(lambda _c=False, u=ui: self._on_add_keyframe(u))
+        btn_del.clicked.connect(lambda _c=False, u=ui: self._on_remove_keyframe(u))
+        return ui
+
+    def _add_keyframe(self, table, year, pct):
+        row = table.rowCount()
+        table.insertRow(row)
+        table.setItem(row, 0, QTableWidgetItem(year))
+        table.setItem(row, 1, QTableWidgetItem(pct))
+
+    def _delivery_year(self):
+        try:
+            return int(float(self.edit_year.text()))
+        except ValueError:
+            return self.result_year
+
+    def _on_add_keyframe(self, ui):
+        table = ui["table"]
+        last = self._delivery_year() - 5
+        if table.rowCount() and table.item(table.rowCount() - 1, 0):
+            try:
+                last = int(float(table.item(table.rowCount() - 1, 0).text()))
+            except ValueError:
+                pass
+        self._add_keyframe(table, str(last + 5), "100")
+        self._refresh_preview()
+
+    def _on_remove_keyframe(self, ui):
+        row = ui["table"].currentRow()
+        if row >= 0:
+            ui["table"].removeRow(row)
+            self._refresh_preview()
+
+    def _on_mode_changed(self, ui):
+        mode = ui["combo"].currentData()
+        ui["label_esc"].setVisible(mode == "escalation")
+        ui["edit_esc"].setVisible(mode == "escalation")
+        for key in ("table", "btn_add", "btn_del"):
+            ui[key].setVisible(mode == "keyframes")
+        if mode == "keyframes" and ui["table"].rowCount() == 0:
+            # Seed a flat start/end pair so the user edits rather than types.
+            year = self._delivery_year()
+            ui["table"].blockSignals(True)
+            self._add_keyframe(ui["table"], str(year), "100")
+            self._add_keyframe(ui["table"], str(year + self.ship_life - 1), "100")
+            ui["table"].blockSignals(False)
+        self._refresh_preview()
+
+    def _read_path(self, ui):
+        """Build a PricePath from one group's widgets; raises ValueError."""
+        mode = ui["combo"].currentData()
+        if mode == "escalation":
+            path = PricePath("escalation", escalation_pct=float(ui["edit_esc"].text()))
+        elif mode == "keyframes":
+            frames = []
+            table = ui["table"]
+            for r in range(table.rowCount()):
+                cells = [table.item(r, c).text().strip() if table.item(r, c) else "" for c in (0, 1)]
+                if not any(cells):
+                    continue
+                frames.append((int(float(cells[0])), float(cells[1])))
+            path = PricePath("keyframes", keyframes=tuple(frames))
+        else:
+            path = PricePath()
+        path.validate()
+        return path
+
+    def _refresh_preview(self, *_):
+        if self.canvas is None:
+            return
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        year = self._delivery_year()
+        years = [year + i for i in range(self.ship_life)]
+        for name, ui in (("Fuel price", self.fuel_ui), ("Carbon tax", self.carbon_ui)):
+            try:
+                idx = self._read_path(ui).index(year, self.ship_life) * 100.0
+                ax.plot(years, idx, marker=".", label=name)
+            except (ValueError, TypeError, AttributeError):
+                ax.plot([], [], label=f"{name} (invalid)")
+        ax.set_ylabel(mpl_safe("% of base"))
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="best", fontsize=8)
+        self.figure.tight_layout()
+        self.canvas.draw_idle()
+
+    def accept(self):
+        try:
+            year = int(float(self.edit_year.text()))
+        except ValueError:
+            QMessageBox.critical(self, "Input Error", "Delivery year must be a whole number.")
+            return
+        for name, ui in (("Fuel price", self.fuel_ui), ("Carbon tax", self.carbon_ui)):
+            try:
+                path = self._read_path(ui)
+            except (ValueError, TypeError, AttributeError) as e:
+                QMessageBox.critical(self, "Input Error", f"{name} path is invalid.\n{e}")
+                return
+            if ui is self.fuel_ui:
+                self.result_fuel = path
+            else:
+                self.result_carbon = path
+        self.result_year = year
         super().accept()
 
 class ShipDesViewWidget(QWidget, ShipDesignSolver):
@@ -1003,6 +1210,14 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.btn_export_cashflow.clicked.connect(self.on_export_cashflow_csv)
         eco_grid.addWidget(self.btn_export_cashflow, 6, 3, 1, 2)
 
+        self.btn_price_paths = QPushButton("Price paths...")
+        self.btn_price_paths.setToolTip("Set how the fuel price and carbon tax change over the ship's life.")
+        self.btn_price_paths.clicked.connect(self.on_config_price_paths)
+        self.label_price_paths = QLabel()
+        eco_grid.addWidget(self.btn_price_paths, 6, 0)
+        eco_grid.addWidget(self.label_price_paths, 6, 1, 1, 2)
+        self._refresh_price_path_label()
+
         self.check_eedi = QCheckBox("Calculate EEDI (Phase 3)")
         self.check_eedi.setToolTip("Calculates Energy Efficiency Design Index against IMO Reference Lines")
         self.check_eedi.toggled.connect(self._reset_dlg) # Connect to reset logic
@@ -1044,7 +1259,10 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             "Sea days/year":       ("200", "340", "8"),    # Nuclear utilisation crossover
             "Air Lub Eff. (%)":    ("0", "10", "6"),       # ESD sensitivity (sec 5.6)
             "Wind Power Sav. (%)": ("0", "15", "6"),       # ESD sensitivity (sec 5.6)
-            "Methane Slip (%)":    ("0", "4", "5")         # LNG GWP sensitivity (sec 5.5)
+            "Methane Slip (%)":    ("0", "4", "5"),        # LNG GWP sensitivity (sec 5.5)
+            # -- Price paths (replace the current path with pure escalation) --
+            "Fuel escalation (%/yr)":   ("-2", "6", "5"),
+            "Carbon escalation (%/yr)": ("-2", "6", "5"),
         }
 
         # 2. Setup Input 1 (X-Axis)
@@ -1701,6 +1919,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.Kcases = 0 
 
         original_ui_state = {
+            'fuel_path': self.m_FuelPricePath,
+            'carbon_path': self.m_CarbonPricePath,
             'speed': self.edit_speed.text(),
             'weight': self.edit_weight.text(),
             'teu': self.edit_teu.text(),
@@ -1784,6 +2004,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                     elif param_name == "Wind Power Sav. (%)":
                         self.check_wind.setChecked(True)
                         self.edit_wind_sav.setText(str(value))
+                    elif self._set_price_path_param(param_name, value):
+                        pass
                     elif param_name == "Methane Slip (%)":
                         self.edit_methane_slip.setText(str(value))
                         # Methane slip only matters if the carbon tax is on,
@@ -1905,6 +2127,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             self.check_cbvalue.setChecked(original_ui_state['cbvalue_c'])
             self.check_fuel_vol.setChecked(original_ui_state['fuel_vol_c'])
             
+            self.m_FuelPricePath = original_ui_state['fuel_path']
+            self.m_CarbonPricePath = original_ui_state['carbon_path']
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             
@@ -1951,6 +2175,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             return
 
         original_ui_state = {
+            'fuel_path': self.m_FuelPricePath,
+            'carbon_path': self.m_CarbonPricePath,
             'speed': self.edit_speed.text(),
             'weight': self.edit_weight.text(),
             'teu': self.edit_teu.text(),
@@ -2030,6 +2256,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 elif name == "Wind Power Sav. (%)":
                     self.check_wind.setChecked(True)
                     self.edit_wind_sav.setText(str(val))
+                elif self._set_price_path_param(name, val):
+                    pass
                 elif name == "Methane Slip (%)":
                     self.edit_methane_slip.setText(str(val))
                     self.check_carbon_tax.setChecked(True)
@@ -2182,6 +2410,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 self.edit_methane_slip.setText(original_ui_state['methane_slip'])
                 self.check_carbon_tax.setChecked(original_ui_state['ctax_chk'])
 
+            self.m_FuelPricePath = original_ui_state['fuel_path']
+            self.m_CarbonPricePath = original_ui_state['carbon_path']
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             self._reset_dlg()
@@ -2227,6 +2457,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
 
         # Save original UI state to restore later
         original_ui_state = {
+            'fuel_path': self.m_FuelPricePath,
+            'carbon_path': self.m_CarbonPricePath,
             'engine_idx': self.combo_engine.currentIndex(),
             'speed': self.edit_speed.text(),
             'weight': self.edit_weight.text(),
@@ -2289,6 +2521,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 self.check_als.setChecked(True); self.edit_als_eff.setText(str(val))
             elif name == "Wind Power Sav. (%)":
                 self.check_wind.setChecked(True); self.edit_wind_sav.setText(str(val))
+            elif self._set_price_path_param(name, val):
+                pass
             elif name == "Methane Slip (%)":
                 self.edit_methane_slip.setText(str(val))
                 self.check_carbon_tax.setChecked(True)
@@ -2450,6 +2684,8 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 self.check_wind.setChecked(original_ui_state['wind_chk'])
                 self.edit_methane_slip.setText(original_ui_state['methane_slip'])
 
+            self.m_FuelPricePath = original_ui_state['fuel_path']
+            self.m_CarbonPricePath = original_ui_state['carbon_path']
             self.ignspd = original_ui_state['ignspd']
             self.ignpth = original_ui_state['ignpth']
             self._reset_dlg()
@@ -2582,6 +2818,36 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         except Exception as e:
             self._show_error(f"Failed to write CSV file: {e}")
 
+    def on_config_price_paths(self):
+        """Opens the fuel / carbon price path dialog."""
+        try:
+            ship_life = int(float(self.edit_ship_life.text()))
+        except ValueError:
+            ship_life = int(self.m_ShipLife)
+        dlg = PricePathDialog(self.m_FuelPricePath, self.m_CarbonPricePath,
+                              self.m_DeliveryYear, ship_life, self)
+        if dlg.exec():
+            self.m_FuelPricePath = dlg.result_fuel
+            self.m_CarbonPricePath = dlg.result_carbon
+            self.m_DeliveryYear = dlg.result_year
+            self._refresh_price_path_label()
+
+    def _refresh_price_path_label(self):
+        self.label_price_paths.setText(
+            f"Fuel: {self.m_FuelPricePath.describe()}  |  Carbon: {self.m_CarbonPricePath.describe()}"
+            f"  (from {self.m_DeliveryYear})")
+
+    def _set_price_path_param(self, name, val):
+        """Sweep hook for the escalation parameters; True if `name` was one."""
+        if name == "Fuel escalation (%/yr)":
+            self.m_FuelPricePath = PricePath("escalation", escalation_pct=float(val))
+        elif name == "Carbon escalation (%/yr)":
+            self.m_CarbonPricePath = PricePath("escalation", escalation_pct=float(val))
+            self.check_carbon_tax.setChecked(True)
+        else:
+            return False
+        return True
+
     def on_export_cashflow_csv(self):
         """Exports the year-by-year cash flow of the last calculation."""
         cf = getattr(self, 'cash_flow', None)
@@ -2603,12 +2869,16 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                                  "Discount rate (%)", self.I])
                 writer.writerow(["PV net costs ($)", f"{cf.pv_costs:.2f}", "PV cargo (t)", f"{cf.pv_cargo:.2f}",
                                  "RFR ($/t)", f"{cf.rfr:.4f}"])
+                writer.writerow(["Delivery year", self.m_DeliveryYear,
+                                 "Fuel price path", self.m_FuelPricePath.describe(),
+                                 "Carbon price path", self.m_CarbonPricePath.describe()])
                 writer.writerow([])
                 rows = cf.to_rows()
                 writer.writerow(rows[0])
                 for row in rows[1:]:
-                    # Money and cargo to the cent/kg; discount factor (last column) to 6 dp.
-                    writer.writerow([row[0]] + [f"{v:.2f}" for v in row[1:-1]] + [f"{row[-1]:.6f}"])
+                    # Year columns as integers; money and cargo to the cent/kg;
+                    # discount factor (last column) to 6 dp.
+                    writer.writerow(row[:2] + [f"{v:.2f}" for v in row[2:-1]] + [f"{row[-1]:.6f}"])
 
             QMessageBox.information(self, "Export Complete", f"Successfully saved cash flow to:\n{fileName}")
 
@@ -3301,7 +3571,16 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                         output_lines.append(f"   Ship life (years) = {self.ship_life:3d}")
                         output_lines.append(f"   PV of net costs = {cf.pv_costs / 1.0e6:,.2f} (M$)")
                         output_lines.append(f"   PV of cargo = {cf.pv_cargo:,.0f} (t)")
-                        if self.ship_life != self.N:
+                        if not (self.m_FuelPricePath.is_flat() and self.m_CarbonPricePath.is_flat()):
+                            output_lines.append(f"   Delivery year = {self.m_DeliveryYear}")
+                            output_lines.append(f"   Fuel price path = {self.m_FuelPricePath.describe()}")
+                            output_lines.append(f"   Carbon price path = {self.m_CarbonPricePath.describe()}")
+                            if not math.isnan(cf.levelised_fuel_price):
+                                output_lines.append(f"   Levelised fuel price = {cf.levelised_fuel_price:,.2f} ($/t)")
+                            if not math.isnan(cf.levelised_carbon_price):
+                                output_lines.append(f"   Levelised carbon tax = {cf.levelised_carbon_price:,.2f} ($/tCO2e)")
+                        if self.ship_life != self.N or not (self.m_FuelPricePath.is_flat()
+                                                            and self.m_CarbonPricePath.is_flat()):
                             annualised = self.Rf_annualised * conv_factor
                             output_lines.append(f"       (Single-year annualised RFR = {annualised:5.2f} {unit_label})")
 

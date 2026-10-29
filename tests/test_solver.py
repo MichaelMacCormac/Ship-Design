@@ -10,7 +10,9 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from economics import CashFlowInputs, build_cash_flow, capital_recovery_factor  # noqa: E402
+import numpy as np  # noqa: E402
+
+from economics import CashFlowInputs, PricePath, build_cash_flow, capital_recovery_factor  # noqa: E402
 from ship_solver import ShipDesignSolver  # noqa: E402
 
 
@@ -148,9 +150,98 @@ class TestCashFlowModel(unittest.TestCase):
         self.assertAlmostEqual(plain.net_cost[0] - cf.net_cost[0], 2e6)
 
     def test_to_rows_shape(self):
-        rows = build_cash_flow(self._inputs()).to_rows()
+        rows = build_cash_flow(self._inputs(start_year=2030)).to_rows()
         self.assertEqual(len(rows), 16)
         self.assertEqual(len(rows[0]), len(rows[1]))
+        header = rows[0]
+        self.assertEqual(rows[1][header.index("Calendar year")], 2030)
+        self.assertEqual(rows[-1][header.index("Calendar year")], 2044)
+        self.assertEqual(rows[1][header.index("Fuel price ($/t)")], 600.0)
+
+    def test_levelised_price_of_flat_path_is_the_price(self):
+        cf = build_cash_flow(self._inputs())
+        self.assertAlmostEqual(cf.levelised_fuel_price, 600.0)
+        self.assertTrue(math.isnan(cf.levelised_carbon_price))
+
+
+class TestPricePath(unittest.TestCase):
+    def test_flat(self):
+        self.assertTrue(np.array_equal(PricePath().index(2030, 5), np.ones(5)))
+
+    def test_escalation_starts_at_base(self):
+        idx = PricePath("escalation", escalation_pct=3.0).index(2030, 10)
+        self.assertEqual(idx[0], 1.0)
+        self.assertAlmostEqual(idx[-1], 1.03 ** 9)
+
+    def test_keyframes_interpolate_and_hold(self):
+        path = PricePath("keyframes", keyframes=((2030, 100.0), (2040, 200.0)))
+        idx = path.index(2025, 25)                       # 2025 .. 2049
+        self.assertEqual(idx[0], 1.0)                    # before first keyframe: held
+        self.assertAlmostEqual(idx[2035 - 2025], 1.5)    # midway
+        self.assertEqual(idx[-1], 2.0)                   # after last keyframe: held
+
+    def test_empty_keyframes_is_flat(self):
+        path = PricePath("keyframes")
+        self.assertTrue(path.is_flat())
+        self.assertTrue(np.array_equal(path.index(2030, 3), np.ones(3)))
+
+    def test_invalid_paths_raise(self):
+        for path in (PricePath("rocket"),
+                     PricePath("keyframes", keyframes=((2040, 100.0), (2030, 120.0))),
+                     PricePath("keyframes", keyframes=((2030, -5.0),)),
+                     PricePath("escalation", escalation_pct=-100.0)):
+            with self.assertRaises(ValueError):
+                path.validate()
+
+    def test_describe(self):
+        self.assertEqual(PricePath().describe(), "flat")
+        self.assertEqual(PricePath("escalation", escalation_pct=2.0).describe(), "+2.0 %/yr")
+        self.assertIn("2030:120%", PricePath("keyframes", keyframes=((2030, 120.0),)).describe())
+
+
+class TestPricePathsInSolver(unittest.TestCase):
+    def test_fuel_escalation_raises_rfr_but_not_the_ship(self):
+        base, _ = solve(ship_name="Tanker")
+        esc, ok = solve(ship_name="Tanker", m_FuelPricePath=PricePath("escalation", escalation_pct=3.0))
+        self.assertTrue(ok, esc.solver_errors)
+        self.assertGreater(esc.Rf, base.Rf)
+        self.assertEqual((esc.L1, esc.P2, esc.S), (base.L1, base.P2, base.S))
+        self.assertEqual(esc.Rf_annualised, base.Rf_annualised)
+
+    def test_levelised_fuel_price_matches_pv_weighted_index(self):
+        path = PricePath("escalation", escalation_pct=3.0)
+        s, ok = solve(ship_name="Tanker", m_FuelPricePath=path)
+        self.assertTrue(ok)
+        idx = path.index(s.m_DeliveryYear, s.ship_life)
+        df = 1.10 ** -np.arange(1, s.ship_life + 1)
+        expected = s.F8 * np.sum(idx * df) / np.sum(df)
+        self.assertAlmostEqual(s.cash_flow.levelised_fuel_price, expected, places=6)
+
+    def test_carbon_path_ignored_without_carbon_tax(self):
+        base, _ = solve(ship_name="Tanker", engine_name="LNG (Dual Fuel)")
+        kf, ok = solve(ship_name="Tanker", engine_name="LNG (Dual Fuel)",
+                       m_CarbonPricePath=PricePath("keyframes", keyframes=((2030, 300.0),)))
+        self.assertTrue(ok)
+        self.assertEqual(kf.Rf, base.Rf)
+
+    def test_carbon_keyframes_raise_rfr_with_tax_on(self):
+        base, _ = solve(ship_name="Tanker", engine_name="LNG (Dual Fuel)", m_CarbonTaxOn=True)
+        kf, ok = solve(ship_name="Tanker", engine_name="LNG (Dual Fuel)", m_CarbonTaxOn=True,
+                       m_CarbonPricePath=PricePath("keyframes", keyframes=((2030, 100.0), (2040, 250.0))))
+        self.assertTrue(ok)
+        self.assertGreater(kf.Rf, base.Rf)
+        self.assertEqual(kf.cash_flow.carbon_price[0], 85.0)    # 2027: before first keyframe
+
+    def test_invalid_path_fails_solve(self):
+        s, ok = solve(ship_name="Tanker",
+                      m_FuelPricePath=PricePath("keyframes", keyframes=((2040, 100.0), (2030, 100.0))))
+        self.assertFalse(ok)
+        self.assertTrue(any("Fuel price path" in e for e in s.solver_errors))
+
+    def test_results_include_levelised_prices(self):
+        s, ok = solve(ship_name="Tanker")
+        self.assertTrue(ok)
+        self.assertAlmostEqual(s.results()["LevelisedFuelPrice($/t)"], s.F8)
 
 
 if __name__ == "__main__":

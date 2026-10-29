@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-from economics import CashFlowInputs, build_cash_flow
+from economics import CashFlowInputs, PricePath, build_cash_flow
 from ship_config import FuelConfig, ShipConfig, ResistanceMethodConfig, EmpiricalBasisConfig
 
 
@@ -47,7 +47,12 @@ class ShipDesignSolver:
         self.m_Prpm = 120.0 #
         self.m_Range = 12000.0 #
         self.m_Repay = 15.0 #
-        self.m_ShipLife = 15.0 # Operating years for the cash flow (may differ from loan term)        
+        self.m_ShipLife = 15.0 # Operating years for the cash flow (may differ from loan term)
+        # Price paths scale the base fuel price (m_Fuel) and carbon tax
+        # (m_CarbonTax) year by year; operating year 1 is m_DeliveryYear.
+        self.m_DeliveryYear = 2027
+        self.m_FuelPricePath = PricePath()
+        self.m_CarbonPricePath = PricePath()
         self.m_Results = "Press the Calculate button\r\nto find ship dimensions ..." #
         self.m_Seadays = 340.0 #
         self.m_Speed = 15.0 #
@@ -310,11 +315,13 @@ class ShipDesignSolver:
                 "InstalledPower(kW)", "BuildCost(M$)", "AnnualFuelCost(M$)",
                 "AnnualCarbonTax(M$)", "AnnualisedCAPEX(M$)", "AnnualOPEX(M$)",
                 "EEDI(gCO2/t.nm)", "AttainedCII", "FuelVol%Hull", "VolCargo(m3)",
-                "VolFuel(m3)", "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%"]
+                "VolFuel(m3)", "VolMachinery(m3)", "VolStores(m3)", "VolUtilisation%",
+                "LevelisedFuelPrice($/t)", "LevelisedCarbonPrice($/t)"]
         if not self.CalculatedOk:
             return {k: np.nan for k in keys}
         econ = bool(self.m_Econom)
         is_teu = (self.design_mode == 2)
+        cash = getattr(self, 'cash_flow', None) if econ else None
 
         def _econ(v):
             return v if econ else np.nan
@@ -349,6 +356,8 @@ class ShipDesignSolver:
             "VolMachinery(m3)": getattr(self, 'vol_mach', np.nan),
             "VolStores(m3)": getattr(self, 'vol_stores', np.nan),
             "VolUtilisation%": getattr(self, 'vol_utilisation_pct', np.nan),
+            "LevelisedFuelPrice($/t)": cash.levelised_fuel_price if cash else np.nan,
+            "LevelisedCarbonPrice($/t)": cash.levelised_carbon_price if cash else np.nan,
         }
 
     def solve(self):
@@ -799,6 +808,14 @@ class ShipDesignSolver:
                 self._show_error("Fatal error: Ship life must be at least 1 year!", "Input error")
                 self._focus_field("edit_ship_life")
                 return False
+
+            for label, path in (("Fuel price path", self.m_FuelPricePath),
+                                ("Carbon price path", self.m_CarbonPricePath)):
+                try:
+                    path.validate()
+                except ValueError as e:
+                    self._show_error(f"Fatal error: {label}: {e}", "Input error")
+                    return False
             
             if self.Ketype == 4: # Nuclear
                 if self.m_Reactor_Cost_per_kW <= 0 or self.m_Core_Life <= 0 or self.m_Decom_Cost < 0:
@@ -1286,8 +1303,12 @@ class ShipDesignSolver:
         # Legacy single-year RFR, kept for comparison with the cash flow.
         self.Rf_annualised = Rt_adjusted / W7
 
-        # Year-by-year cash flow. With constant inputs and ship life equal
-        # to the loan term this reproduces Rf_annualised.
+        # Year-by-year cash flow. With flat price paths and ship life equal
+        # to the loan term this reproduces Rf_annualised. Aux gensets burn
+        # the same fuel, so their price follows the fuel path too.
+        fuel_index = self.m_FuelPricePath.index(self.m_DeliveryYear, self.ship_life)
+        carbon_index = self.m_CarbonPricePath.index(self.m_DeliveryYear, self.ship_life)
+        carbon_base = self.m_CarbonTax if self.m_CarbonTaxOn else 0.0
         self.cash_flow = build_cash_flow(CashFlowInputs(
             capex=S8 + S9 + S0,
             loan_rate=I_rate,
@@ -1299,13 +1320,14 @@ class ShipDesignSolver:
                         + self.m_H6_Overhead + self.m_H8_Other),
             maintenance=H3,
             fuel_tonnes=self.annual_fuel_tonnes,
-            fuel_price=self.F8,
+            fuel_price=self.F8 * fuel_index,
             co2e_tonnes=self.annual_co2e_tonnes,
-            carbon_price=self.m_CarbonTax if self.m_CarbonTaxOn else 0.0,
+            carbon_price=carbon_base * carbon_index,
             aux_fuel_tonnes=getattr(self, 'aux_fuel_annual_tonnes', 0.0),
-            aux_price=getattr(self, 'aux_fuel_price', 0.0),
+            aux_price=getattr(self, 'aux_fuel_price', 0.0) * fuel_index,
             nuclear=self.annual_core_cost + self.annual_decom_fund,
             premium_income=self.annual_premium_income,
+            start_year=self.m_DeliveryYear,
         ))
         self.Rf = self.cash_flow.rfr
 
