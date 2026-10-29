@@ -82,8 +82,18 @@ class MonteCarloWindow(QWidget):
         self.check_lhs.setToolTip("Stratified sampling: converges faster than plain random sampling.")
         self.edit_corr = QLineEdit("0.5")
         self.edit_corr.setToolTip("Correlation between the fuel A and fuel B price draws (-1 to 1).")
-        form.addWidget(QLabel("Fuel A:"), 0, 0); form.addWidget(self.combo_a, 0, 1, 1, 3)
-        form.addWidget(QLabel("Fuel B:"), 1, 0); form.addWidget(self.combo_b, 1, 1, 1, 3)
+        # Propeller count per side; defaults to the main form's setting so a
+        # plain fuel comparison keeps the hull/propulsion the user designed.
+        self.combo_props_a = QComboBox(); self.combo_props_b = QComboBox()
+        form_props = getattr(self.main, "m_NumProps", 1)
+        for combo in (self.combo_props_a, self.combo_props_b):
+            combo.addItem("Single screw", 1)
+            combo.addItem("Twin screw", 2)
+            combo.setCurrentIndex(combo.findData(form_props))
+        form.addWidget(QLabel("Option A:"), 0, 0); form.addWidget(self.combo_a, 0, 1, 1, 2)
+        form.addWidget(self.combo_props_a, 0, 3)
+        form.addWidget(QLabel("Option B:"), 1, 0); form.addWidget(self.combo_b, 1, 1, 1, 2)
+        form.addWidget(self.combo_props_b, 1, 3)
         form.addWidget(QLabel("Samples:"), 2, 0); form.addWidget(self.edit_n, 2, 1)
         form.addWidget(QLabel("Seed:"), 2, 2); form.addWidget(self.edit_seed, 2, 3)
         form.addWidget(self.check_lhs, 3, 0, 1, 2)
@@ -170,6 +180,8 @@ class MonteCarloWindow(QWidget):
         # --- Signals ------------------------------------------------------------
         self.combo_a.currentTextChanged.connect(lambda _t: self._on_fuel_changed("A"))
         self.combo_b.currentTextChanged.connect(lambda _t: self._on_fuel_changed("B"))
+        self.combo_props_a.currentIndexChanged.connect(lambda _i: self._relabel())
+        self.combo_props_b.currentIndexChanged.connect(lambda _i: self._relabel())
         self.combo_be.currentIndexChanged.connect(self._on_breakeven_changed)
         self.combo_map_x.currentIndexChanged.connect(self._redraw_map)
         self.combo_map_y.currentIndexChanged.connect(self._redraw_map)
@@ -193,8 +205,20 @@ class MonteCarloWindow(QWidget):
     def _fuels(self):
         return self.combo_a.currentText(), self.combo_b.currentText()
 
+    def _props(self):
+        return self.combo_props_a.currentData(), self.combo_props_b.currentData()
+
+    def _names(self):
+        (fa, fb), (pa, pb) = self._fuels(), self._props()
+        return mc.option_names(fa, pa, fb, pb)
+
     def _label(self, col):
-        return mc.column_label(col, *self._fuels())
+        return mc.column_label(col, *self._names())
+
+    def _relabel(self):
+        for row, col in enumerate(self._columns):
+            self.table.item(row, self.COL_INPUT).setText(self._label(col))
+        self._refresh_choice_combos()
 
     def _short_label(self, col):
         """Label without units, with A/B instead of fuel names (for tight axes)."""
@@ -263,8 +287,9 @@ class MonteCarloWindow(QWidget):
     def _read_config(self):
         """Validated run arguments from the widgets; raises ValueError."""
         fuel_a, fuel_b = self._fuels()
-        if fuel_a == fuel_b:
-            raise ValueError("Choose two different fuels.")
+        props_a, props_b = self._props()
+        if (fuel_a, props_a) == (fuel_b, props_b):
+            raise ValueError("Choose two different options (fuel or number of propellers).")
         n = int(self.edit_n.text())
         if not 1 <= n <= 200000:
             raise ValueError("Samples must be between 1 and 200,000.")
@@ -298,7 +323,8 @@ class MonteCarloWindow(QWidget):
             breakeven = mc.BreakEvenSpec(col, float(self.edit_be_lo.text()), float(self.edit_be_hi.text()))
             if not breakeven.lo < breakeven.hi:
                 raise ValueError("Break-even search range needs 'from' < 'to'.")
-        return dict(fuel_a=fuel_a, fuel_b=fuel_b, uncertain=uncertain, n=n, seed=seed,
+        return dict(fuel_a=fuel_a, fuel_b=fuel_b, props_a=props_a, props_b=props_b,
+                    uncertain=uncertain, n=n, seed=seed,
                     method="lhs" if self.check_lhs.isChecked() else "random",
                     correlations={("fuel_price_A", "fuel_price_B"): corr}, breakeven=breakeven)
 
@@ -406,9 +432,9 @@ class MonteCarloWindow(QWidget):
         else:
             bins = self._bins(a, b)
             ax.hist(a, bins=bins, color=COLOR_A, alpha=0.55, edgecolor="white", linewidth=0.5,
-                    label=f"A: {r.fuel_a}")
+                    label=f"A: {r.name_a}")
             ax.hist(b, bins=bins, color=COLOR_B, alpha=0.55, edgecolor="white", linewidth=0.5,
-                    label=f"B: {r.fuel_b}")
+                    label=f"B: {r.name_b}")
             for v, c in ((r.base_rfr_a, COLOR_A), (r.base_rfr_b, COLOR_B)):
                 if math.isfinite(v):
                     ax.axvline(v, color=c, linestyle="--", linewidth=1.5)
@@ -434,7 +460,7 @@ class MonteCarloWindow(QWidget):
             ax.axvline(0.0, color="#0b0b0b", linewidth=1.0)
             ax.set_xlabel(_mpl_safe("RFR gap B - A ($/t)   (left of 0: B cheaper, right: A cheaper)"))
             ax.set_ylabel("Samples")
-            ax.set_title(f"P({r.fuel_b} cheaper than {r.fuel_a}) = {100 * r.p_b_cheaper():.1f} %", fontsize=10)
+            ax.set_title(f"P({r.name_b} cheaper than {r.name_a}) = {100 * r.p_b_cheaper():.1f} %", fontsize=10)
         canvas.draw_idle()
 
     def _redraw_map(self, *_):
@@ -453,9 +479,9 @@ class MonteCarloWindow(QWidget):
             x, y = r.samples[cx][r.ok], r.samples[cy][r.ok]
             b_wins = r.gap[r.ok] < 0
             ax.scatter(x[~b_wins], y[~b_wins], s=10, color=COLOR_A, alpha=0.6, linewidths=0,
-                       label=f"A cheaper: {r.fuel_a}")
+                       label=f"A cheaper: {r.name_a}")
             ax.scatter(x[b_wins], y[b_wins], s=10, color=COLOR_B, alpha=0.6, linewidths=0,
-                       label=f"B cheaper: {r.fuel_b}")
+                       label=f"B cheaper: {r.name_b}")
             ax.set_xlabel(_mpl_safe(self._label(cx)))
             ax.set_ylabel(_mpl_safe(self._label(cy)))
             ax.set_title("Which fuel is cheaper in each sampled future", fontsize=10)
@@ -508,7 +534,7 @@ class MonteCarloWindow(QWidget):
             ax.set_xlim(-1, 1)
             ax.set_xlabel("Spearman rank correlation with the RFR gap (B - A)")
             ax.set_title("What drives the gap", fontsize=10)
-            ax.legend(handles=[Patch(color=COLOR_A, label=f"higher value favours A: {r.fuel_a}"),
-                               Patch(color=COLOR_B, label=f"higher value favours B: {r.fuel_b}")],
+            ax.legend(handles=[Patch(color=COLOR_A, label=f"higher value favours A: {r.name_a}"),
+                               Patch(color=COLOR_B, label=f"higher value favours B: {r.name_b}")],
                       frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=2, fontsize=8)
         canvas.draw_idle()

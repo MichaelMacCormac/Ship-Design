@@ -94,6 +94,13 @@ class ShipDesignSolver:
         self.m_RetrofitFactor = 0.40   # Default machinery cost discount
         self.m_MachineryCostFactor = 1.0  # Multiplier on machinery capex S0 (cost uncertainty)
 
+        # Screw configuration. Everything below is a no-op for single screw.
+        self.m_NumProps = 1            # 1 = single screw, 2 = twin screw (one engine per shaft)
+        self.m_TwinAppAreaPct = 6.0    # twin appendage wetted area, % of hull S (placeholder)
+        self.m_TwinK2 = 2.8            # twin appendage (1+k2)_eq: brackets/shafts/twin rudders
+        self.m_ShaftMassPerKW = 5.0    # kg/kW on each additional shaft line (placeholder)
+        self.m_ShaftCostPerKW = 150.0  # $/kW on each additional shaft line (placeholder)
+
         # Per-run override of fuel_data["Carbon"] (tCO2 / t fuel).  None
         # means "use the FuelConfig value".  Set by the Battle Mode dialog
         # so each engine can be evaluated against a user-tweaked carbon
@@ -842,6 +849,15 @@ class ShipDesignSolver:
                     self._focus_field("edit_fuel")
                     return False
 
+        if self.m_NumProps not in (1, 2):
+            self._show_error(f"Fatal error: Number of propellers must be 1 or 2 (got {self.m_NumProps})!",
+                             "Input error")
+            return False
+        if self.m_NumProps == 2 and min(self.m_TwinAppAreaPct, self.m_TwinK2,
+                                        self.m_ShaftMassPerKW, self.m_ShaftCostPerKW) < 0:
+            self._show_error("Fatal error: Twin-screw inputs must not be negative!", "Input error")
+            return False
+
         # ----------------------------------------------------------------
         # Resistance method-specific validation
         # ----------------------------------------------------------------
@@ -1182,7 +1198,20 @@ class ShipDesignSolver:
             S0_nuclear = self.m_Reactor_Cost_per_kW * installed_power_kw
             S0 = S0_nuclear
         else: # Fossil
-            S0 = self.m_S5_Machinery1 * (self.P1 ** 0.82) + self.m_S6_Machinery2 * (self.P1 ** 0.82)
+            n_eng = self.m_NumProps
+            if n_eng == 1:
+                S0 = self.m_S5_Machinery1 * (self.P1 ** 0.82) + self.m_S6_Machinery2 * (self.P1 ** 0.82)
+            else:
+                # One engine per shaft, each costed at P1/n.
+                p_each = self.P1 / n_eng
+                S0 = n_eng * (self.m_S5_Machinery1 * (p_each ** 0.82) + self.m_S6_Machinery2 * (p_each ** 0.82))
+
+        # Additional shaft lines (twin screw), costed per kW they carry.
+        self.cost_shafting = 0.0
+        if self.m_NumProps > 1:
+            self.cost_shafting = ((self.m_NumProps - 1) / self.m_NumProps
+                                  * self.P2 * 0.7457 * self.m_ShaftCostPerKW)
+            S0 += self.cost_shafting
 
         # ----------------------------------------------------------------
         # Retrofit machinery cost discount (sec 5.4).
@@ -1583,13 +1612,23 @@ class ShipDesignSolver:
         # diesel machinery by roughly an order of magnitude and ignored
         # engine RPM entirely.
         # ----------------------------------------------------------------
+        # One engine per shaft: the diesel and steam regressions are applied
+        # per engine at P2/n, so twin screw pays their economies of scale.
+        n_eng = self.m_NumProps
         if is_legacy_diesel:
             N1_safe = self.N1 if self.N1 > 0 else 1e-9
-            term1 = 9.38 * ((self.P2 / N1_safe) ** 0.84)
-            term2 = K3 * (self.P2 ** 0.7)
+            if n_eng == 1:
+                term1 = 9.38 * ((self.P2 / N1_safe) ** 0.84)
+                term2 = K3 * (self.P2 ** 0.7)
+            else:
+                term1 = n_eng * 9.38 * (((self.P2 / n_eng) / N1_safe) ** 0.84)
+                term2 = n_eng * K3 * ((self.P2 / n_eng) ** 0.7)
             self.M3 = term1 + term2
         elif is_legacy_steam:
-            self.M3 = 0.16 * (self.P2 ** 0.89)
+            if n_eng == 1:
+                self.M3 = 0.16 * (self.P2 ** 0.89)
+            else:
+                self.M3 = n_eng * 0.16 * ((self.P2 / n_eng) ** 0.89)
         else:
             if fuel_data["IsNuclear"]:
                 # ~2000 t base for a naval-grade SMR pressure vessel + shielding
@@ -1630,6 +1669,12 @@ class ShipDesignSolver:
                 self.raw_fuel_mass = raw_fuel_mass_tonnes    # ADDED: pure fuel only, no tank
                 W3 = raw_fuel_mass_tonnes * fuel_data["TankFactor"]  # fuel + tank steel mass
                 self.calculated_fuel_mass = W3
+
+        # Additional shaft lines (twin screw): allowance per kW they carry.
+        self.M_shafting = 0.0
+        if n_eng > 1:
+            self.M_shafting = (n_eng - 1) / n_eng * installed_power_kw * self.m_ShaftMassPerKW / 1000.0
+            self.M3 += self.M_shafting
 
         # Aux-machinery contributions (diesel genset, etc.) get folded into
         # M3 / M2 here; M0 is computed once afterwards so the lightship
@@ -1710,6 +1755,19 @@ class ShipDesignSolver:
         if result is False:
             return False
 
+        # Twin-screw appendages under Taylor: the series data already covers a
+        # single-screw stern, so add only the extra drag of the twin set
+        # (Holtrop 1982 appendage formula: twin area/(1+k2) minus the
+        # single-screw 4 % S at 1.5). Holtrop handles twin natively.
+        self.twin_app_extra_kN = 0.0
+        if self.m_NumProps == 2 and method_name == "Taylor's Series (Legacy)":
+            terms = self._holtrop_terms()
+            v_ms_app = max(v_ms, 0.1)
+            d_r_app = 0.5 * 1025.0 * v_ms_app ** 2 * terms["C_F"] * (
+                terms["S_APP"] * self.m_TwinK2 - 0.04 * terms["S"] * 1.5)
+            self.twin_app_extra_kN = d_r_app / 1000.0
+            self.P += d_r_app * v_ms_app / 745.7
+
         # ------------------------------------------------------------------
         # Resistance uncertainty multiplier (Holtrop ±10% sensitivity).
         # Scales effective power Pe before propeller sizing so that downstream
@@ -1739,6 +1797,17 @@ class ShipDesignSolver:
         D5 = self.Pdt * self.T; N5 = self.N2 / 60.0
         W9 = 1.1 - 3.4 * self.C + 3.1 * (self.C ** 1.9)
         T9 = 0.6 * W9; V5 = self.V * 0.515 * (1.0 - W9)
+        n_props = self.m_NumProps
+        if n_props == 2:
+            # Holtrop & Mennen (1984) twin-screw regressions, with
+            # CV = (1+k1)*C_F + C_A from the same hull-form terms. Clipped so
+            # unusual hulls cannot produce a negative hull efficiency.
+            terms = self._holtrop_terms()
+            self.prop_CV = terms["one_plus_k1"] * terms["C_F"] + terms["C_A"]
+            d_ratio = D5 / math.sqrt(max(self.B * self.T, 1e-9))
+            W9 = min(max(0.3095 * self.C + 10.0 * self.prop_CV * self.C - 0.23 * d_ratio, 0.0), 0.6)
+            T9 = min(max(0.325 * self.C - 0.1885 * d_ratio, 0.0), 0.5)
+            V5 = self.V * 0.515 * (1.0 - W9)
         V_safe = self.V if self.V != 0 else 1e-9
         T5 = 0.7461 * self.P / (0.515 * V_safe * (1.0 - T9))
 
@@ -1747,7 +1816,8 @@ class ShipDesignSolver:
         N5_safe = N5 if N5 != 0 else 1e-9
         J3 = V5 / (N5_safe * D5_safe)
         J2 = J3 - J1
-        try: T3 = T5 / (1.025 * (N5_safe ** 2) * (D5_safe ** 4))
+        T5_each = T5 / n_props if n_props > 1 else T5   # thrust per propeller
+        try: T3 = T5_each / (1.025 * (N5_safe ** 2) * (D5_safe ** 4))
         except ZeroDivisionError: T3 = 0
 
         A6 = self._A6; B6 = self._B6; C6 = self._C6; D6 = self._D6
@@ -1779,6 +1849,18 @@ class ShipDesignSolver:
         self.Q1 = T3 * J3 / (2.0 * math.pi * Q3)
         self.Q2 = (1.0 - T9) / (1.0 - W9)
         self.Q = self.Q1 * self.Q2; P5 += P4
+
+        # Relative rotative efficiency: 1.0 in the legacy single-screw model;
+        # Holtrop & Mennen (1984) twin-screw regression otherwise.
+        eta_r = 1.0
+        if n_props == 2:
+            eta_r = 0.9737 + 0.111 * (terms["C_P"] - 0.0225 * terms["lcb"]) - 0.06325 * P5
+            self.Q *= eta_r
+        self.n_props = n_props
+        self.prop_w, self.prop_t = W9, T9
+        self.prop_eta_o, self.prop_eta_h, self.prop_eta_r = self.Q1, self.Q2, eta_r
+        self.prop_D, self.prop_PD = D5, P5
+        self.prop_thrust_each_kN = T5_each
 
         if self.dbgmd and self.m_Cargo == 0:
             msg = f"P5={P5:7.4f} (range {L3:4.2f}-{L4:4.2f})"
@@ -1901,70 +1983,21 @@ class ShipDesignSolver:
         self.resistance_components = components
         return (pe_hp, components)
 
-    def _calc_pe_holtrop(self):
-        """Effective power from Holtrop & Mennen (1982) with 1984 form-factor
-        and wave-resistance updates.
+    def _holtrop_terms(self):
+        """Hull-form, wetted-surface and viscous terms of Holtrop & Mennen.
 
-        Sources:
-          - Holtrop, J. and Mennen, G.G.J. (1982),
-            "An Approximate Power Prediction Method",
-            International Shipbuilding Progress, Vol. 29, No. 335, pp.166-170.
-          - Holtrop, J. (1984),
-            "A Statistical Re-analysis of Resistance and Propulsion Data",
-            International Shipbuilding Progress, Vol. 31, No. 363, pp.272-276.
-
-        Component breakdown (paper notation):
-          R_total = R_F*(1+k_1) + R_APP + R_W + R_B + R_TR + R_A
-
-        Block sources:
-          1. Form factor (1+k_1)             -- 1984 paper p.3
-          2. Appendage resistance R_APP      -- 1982 paper p.167
-          3. Wave resistance R_W             -- 1984 paper pp.3-4
-                (low-speed Fn<=0.40, high-speed Fn>=0.55, linear blend between)
-          4. Bulb-near-surface R_B           -- 1982 paper p.168
-                (with 1984 recommendation: clamp h_B to 0.6*T_F)
-          5. Immersed-transom R_TR           -- 1982 paper p.168
-          6. Model-ship correlation R_A      -- 1982 paper p.168
-                (paper text uses S only; some implementations use S+S_APP)
-
-        Sanity-check target: Holtrop & Mennen (1982) worked example,
-        L=205m, B=32m, T=10m, C_P=0.5833, C_M=0.98, V=25kn -> P_E ~= 23 MW.
-        The 1982 paper's example used the 1982 form factor (1+k_1=1.156)
-        and the 1982 hump/hollow term m_2; this implementation uses the
-        1984 form factor and m_4, so R_total will sit ~1-2% above the
-        paper's 1793 kN. Per-component intermediates (c_1..c_17, lambda,
-        m_1, m_3) all reproduce the paper to <0.1%.
-
-        Returns:
-            (pe_hp, components_dict) on success, False on out-of-range failure.
+        Shared by _calc_pe_holtrop (resistance) and the twin-screw
+        propulsion factors in _power (which need CV = (1+k1)*C_F + C_A)
+        whichever resistance method is active. Returns a dict of the
+        named quantities; the formulas and their references are unchanged
+        from _calc_pe_holtrop.
         """
-        # ---------- Constants & inputs ----------
         L = self.L1 if self.L1 > 0 else 1e-9
         B = self.B if self.B > 0 else 1e-9
         T = self.T if self.T > 0 else 1e-9
         C_B = self.C if self.C > 0 else 1e-9
-        g = 9.81
-        rho_sw = 1025.0
-        rho_air = 1.225
-        nu = 1.188e-6
-        V_ms = self.V * 0.5144
-        if V_ms <= 0: V_ms = 0.1
         Fn = self.froude_number
         Re = self.reynolds_number
-
-        # ---------- Validate Fn against method's regression range ----------
-        cfg = ResistanceMethodConfig.get(self.resistance_method)
-        fn_lo, fn_hi = cfg["valid_fn_range"]
-        if Fn < fn_lo or Fn > fn_hi:
-            # Multiply (don't assign) so this code can co-exist with other
-            # error codes already encoded in Kpwrerr.
-            self.Kpwrerr *= self.RESISTANCE_OUT_OF_RANGE
-            if (not self.ignspd and not self.dbgmd) or self.m_Cargo == 1:
-                self._show_error(
-                    f"Fn={Fn:.3f} outside Holtrop range [{fn_lo:.2f}, {fn_hi:.2f}]",
-                    "Fatal error",
-                )
-                return False
 
         # ---------- Auto-derived hull-form parameters ----------
         # User overrides (from the Holtrop panel) take precedence; otherwise
@@ -2040,7 +2073,13 @@ class ShipDesignSolver:
         if S <= 0: S = 1e-9
 
         # Appendage wetted area
-        S_APP = self.s_app_override if self.s_app_override is not None else 0.04 * S
+        if self.s_app_override is not None:
+            S_APP = self.s_app_override
+        elif self.m_NumProps == 2:
+            # Twin screw: shaft brackets, exposed shafts, twin rudders.
+            S_APP = self.m_TwinAppAreaPct / 100.0 * S
+        else:
+            S_APP = 0.04 * S
 
         # ============================================================
         # BLOCK 1 — Form factor (1+k_1)   [Holtrop 1984, p.3]
@@ -2072,6 +2111,100 @@ class ShipDesignSolver:
             C_F = 0.075 / ((math.log10(Re) - 2.0) ** 2)
         else:
             C_F = 0.0015
+
+        # c_3 (bulb effect) and c_2
+        if A_BT > 0:
+            c_3_denom = B * T * (0.31 * math.sqrt(A_BT) + T_F - h_B)
+            if abs(c_3_denom) < 1e-9:
+                c_3_denom = 1e-9 if c_3_denom >= 0 else -1e-9
+            c_3 = 0.56 * A_BT ** 1.5 / c_3_denom
+        else:
+            c_3 = 0.0
+        c_2 = math.exp(-1.89 * math.sqrt(max(c_3, 0.0)))
+
+
+        if T_F / L <= 0.04:
+            c_4 = T_F / L
+        else:
+            c_4 = 0.04
+        C_A = (
+            0.006 * (L + 100.0) ** (-0.16) - 0.00205
+            + 0.003 * math.sqrt(L / 7.5) * C_B ** 4 * c_2 * (0.04 - c_4)
+        )
+
+        return {k: v for k, v in locals().items() if k in ('C_M', 'C_P', 'C_WP', 'lcb', 'L_R', 'nabla', 'i_E', 'A_BT', 'h_B', 'T_F', 'A_T', 'C_stern', 'S', 'S_APP', 'c_14', 'one_minus_CP', 'one_plus_k1', 'C_F', 'c_3', 'c_2', 'c_4', 'C_A')}
+
+    def _calc_pe_holtrop(self):
+        """Effective power from Holtrop & Mennen (1982) with 1984 form-factor
+        and wave-resistance updates.
+
+        Sources:
+          - Holtrop, J. and Mennen, G.G.J. (1982),
+            "An Approximate Power Prediction Method",
+            International Shipbuilding Progress, Vol. 29, No. 335, pp.166-170.
+          - Holtrop, J. (1984),
+            "A Statistical Re-analysis of Resistance and Propulsion Data",
+            International Shipbuilding Progress, Vol. 31, No. 363, pp.272-276.
+
+        Component breakdown (paper notation):
+          R_total = R_F*(1+k_1) + R_APP + R_W + R_B + R_TR + R_A
+
+        Block sources:
+          1. Form factor (1+k_1)             -- 1984 paper p.3
+          2. Appendage resistance R_APP      -- 1982 paper p.167
+          3. Wave resistance R_W             -- 1984 paper pp.3-4
+                (low-speed Fn<=0.40, high-speed Fn>=0.55, linear blend between)
+          4. Bulb-near-surface R_B           -- 1982 paper p.168
+                (with 1984 recommendation: clamp h_B to 0.6*T_F)
+          5. Immersed-transom R_TR           -- 1982 paper p.168
+          6. Model-ship correlation R_A      -- 1982 paper p.168
+                (paper text uses S only; some implementations use S+S_APP)
+
+        Sanity-check target: Holtrop & Mennen (1982) worked example,
+        L=205m, B=32m, T=10m, C_P=0.5833, C_M=0.98, V=25kn -> P_E ~= 23 MW.
+        The 1982 paper's example used the 1982 form factor (1+k_1=1.156)
+        and the 1982 hump/hollow term m_2; this implementation uses the
+        1984 form factor and m_4, so R_total will sit ~1-2% above the
+        paper's 1793 kN. Per-component intermediates (c_1..c_17, lambda,
+        m_1, m_3) all reproduce the paper to <0.1%.
+
+        Returns:
+            (pe_hp, components_dict) on success, False on out-of-range failure.
+        """
+        # ---------- Constants & inputs ----------
+        L = self.L1 if self.L1 > 0 else 1e-9
+        B = self.B if self.B > 0 else 1e-9
+        T = self.T if self.T > 0 else 1e-9
+        C_B = self.C if self.C > 0 else 1e-9
+        g = 9.81
+        rho_sw = 1025.0
+        rho_air = 1.225
+        nu = 1.188e-6
+        V_ms = self.V * 0.5144
+        if V_ms <= 0: V_ms = 0.1
+        Fn = self.froude_number
+        Re = self.reynolds_number
+
+        # ---------- Validate Fn against method's regression range ----------
+        cfg = ResistanceMethodConfig.get(self.resistance_method)
+        fn_lo, fn_hi = cfg["valid_fn_range"]
+        if Fn < fn_lo or Fn > fn_hi:
+            # Multiply (don't assign) so this code can co-exist with other
+            # error codes already encoded in Kpwrerr.
+            self.Kpwrerr *= self.RESISTANCE_OUT_OF_RANGE
+            if (not self.ignspd and not self.dbgmd) or self.m_Cargo == 1:
+                self._show_error(
+                    f"Fn={Fn:.3f} outside Holtrop range [{fn_lo:.2f}, {fn_hi:.2f}]",
+                    "Fatal error",
+                )
+                return False
+
+        terms = self._holtrop_terms()
+        (C_M, C_P, C_WP, lcb, L_R, nabla, i_E, A_BT,
+         h_B, T_F, A_T, C_stern, S, S_APP, c_14, one_minus_CP,
+         one_plus_k1, C_F, c_3, c_2, c_4, C_A) = (
+            terms[k] for k in ('C_M', 'C_P', 'C_WP', 'lcb', 'L_R', 'nabla', 'i_E', 'A_BT', 'h_B', 'T_F', 'A_T', 'C_stern', 'S', 'S_APP', 'c_14', 'one_minus_CP', 'one_plus_k1', 'C_F', 'c_3', 'c_2', 'c_4', 'C_A'))
+
         R_F = 0.5 * rho_sw * V_ms**2 * S * C_F            # bare-hull friction (N)
         R_F_with_form = R_F * one_plus_k1                  # with form factor (N)
 
@@ -2097,7 +2230,7 @@ class ShipDesignSolver:
         # expose this in the UI and replace the constant. The 1984 paper
         # explicitly defers to the 1982 formulae for appendage resistance
         # ("no new analysis was made", 1984 p.3).
-        one_plus_k2_eq = 1.5
+        one_plus_k2_eq = self.m_TwinK2 if self.m_NumProps == 2 else 1.5
         R_APP = 0.5 * rho_sw * V_ms**2 * S_APP * one_plus_k2_eq * C_F
 
         # ============================================================
@@ -2128,16 +2261,6 @@ class ShipDesignSolver:
         if ie_arg <= 0:
             ie_arg = 1e-6   # i_E should never reach 90 deg, but guard anyway
         c_1 = 2223105.0 * c_7 ** 3.78613 * (T / B) ** 1.07961 * ie_arg ** (-1.37565)
-
-        # c_3 (bulb effect) and c_2
-        if A_BT > 0:
-            c_3_denom = B * T * (0.31 * math.sqrt(A_BT) + T_F - h_B)
-            if abs(c_3_denom) < 1e-9:
-                c_3_denom = 1e-9 if c_3_denom >= 0 else -1e-9
-            c_3 = 0.56 * A_BT ** 1.5 / c_3_denom
-        else:
-            c_3 = 0.0
-        c_2 = math.exp(-1.89 * math.sqrt(max(c_3, 0.0)))
 
         # c_5 (transom effect)
         c_5 = 1.0 - 0.8 * A_T / (B * T * C_M)
@@ -2290,14 +2413,6 @@ class ShipDesignSolver:
         # 1984 update note (p.5): newer trial data suggests C_A averages ~91%
         # of the 1982 formula's value, but the 1984 paper itself recommends
         # keeping the 1982 formula for practical use, which is what we do.
-        if T_F / L <= 0.04:
-            c_4 = T_F / L
-        else:
-            c_4 = 0.04
-        C_A = (
-            0.006 * (L + 100.0) ** (-0.16) - 0.00205
-            + 0.003 * math.sqrt(L / 7.5) * C_B ** 4 * c_2 * (0.04 - c_4)
-        )
         R_A = 0.5 * rho_sw * V_ms ** 2 * S * C_A
 
         # ---------- Air resistance ----------

@@ -246,3 +246,75 @@ class TestPricePathsInSolver(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTwinScrew(unittest.TestCase):
+    TAYLOR, HOLTROP = "Taylor's Series (Legacy)", "Holtrop-Mennen (1984)"
+
+    def _pair(self, **kw):
+        out = []
+        for n in (1, 2):
+            s = ShipDesignSolver().set_inputs(m_NumProps=n, **kw)
+            s.ignspd = s.ignpth = True
+            self.assertTrue(s.solve(), s.solver_errors)
+            out.append(s)
+        return out
+
+    def test_single_screw_reports_legacy_factors(self):
+        s, ok = solve(ship_name="Tanker")
+        self.assertTrue(ok)
+        self.assertEqual(s.n_props, 1)
+        self.assertEqual(s.prop_eta_r, 1.0)
+        w = 1.1 - 3.4 * s.C + 3.1 * s.C ** 1.9
+        self.assertAlmostEqual(s.prop_w, w, places=12)
+        self.assertAlmostEqual(s.prop_t, 0.6 * w, places=12)
+
+    def test_twin_factors_follow_holtrop_1984(self):
+        for method in (self.TAYLOR, self.HOLTROP):
+            single, twin = self._pair(ship_name="Tanker", resistance_method=method)
+            terms = twin._holtrop_terms()
+            cv = terms["one_plus_k1"] * terms["C_F"] + terms["C_A"]
+            d_ratio = twin.prop_D / math.sqrt(twin.B * twin.T)
+            self.assertAlmostEqual(twin.prop_w, 0.3095 * twin.C + 10 * cv * twin.C - 0.23 * d_ratio, places=9)
+            self.assertAlmostEqual(twin.prop_t, 0.325 * twin.C - 0.1885 * d_ratio, places=9)
+            eta_r = 0.9737 + 0.111 * (terms["C_P"] - 0.0225 * terms["lcb"]) - 0.06325 * twin.prop_PD
+            self.assertAlmostEqual(twin.prop_eta_r, eta_r, places=9)
+            self.assertAlmostEqual(twin.Q, twin.prop_eta_o * twin.prop_eta_h * eta_r, places=12)
+            self.assertLess(twin.prop_eta_h, single.prop_eta_h, method)
+            self.assertGreater(twin.prop_eta_o, single.prop_eta_o, method)
+
+    def test_twin_thrust_split_between_propellers(self):
+        single, twin = self._pair(ship_name="Tanker")
+        total = 0.7461 * twin.P / (0.515 * twin.V * (1.0 - twin.prop_t))
+        self.assertAlmostEqual(twin.prop_thrust_each_kN, total / 2, places=6)
+
+    def test_twin_appendage_drag(self):
+        # Holtrop: native appendage component grows; Taylor: an increment is added.
+        single, twin = self._pair(ship_name="Tanker", resistance_method=self.HOLTROP)
+        self.assertGreater(twin.resistance_components["appendage"], single.resistance_components["appendage"])
+        single, twin = self._pair(ship_name="Tanker", resistance_method=self.TAYLOR)
+        self.assertEqual(single.twin_app_extra_kN, 0.0)
+        self.assertGreater(twin.twin_app_extra_kN, 0.0)
+
+    def test_twin_diesel_machinery_mass_and_cost(self):
+        single, twin = self._pair(ship_name="Tanker")
+        p2, n1 = twin.P2, twin.N1
+        k3 = 0.59
+        engines = 2 * (9.38 * ((p2 / 2) / n1) ** 0.84 + k3 * (p2 / 2) ** 0.7)
+        shafting = 0.5 * p2 * 0.7457 * twin.m_ShaftMassPerKW / 1000.0
+        self.assertAlmostEqual(twin.M_shafting, shafting, places=9)
+        self.assertAlmostEqual(twin.M3, engines + shafting, places=6)
+        engines_cost = 2 * (twin.m_S5_Machinery1 + twin.m_S6_Machinery2) * (twin.P1 / 2) ** 0.82
+        self.assertAlmostEqual(twin.cost_machinery_M * 1e6, engines_cost + twin.cost_shafting, places=2)
+        self.assertGreater(twin.Rf, single.Rf)
+
+    def test_twin_nuclear_keeps_one_reactor(self):
+        single, twin = self._pair(ship_name="Tanker", engine_name="Nuclear SMR", m_Range=float("inf"))
+        reactor = twin.m_Reactor_Cost_per_kW * twin.P2 * 0.7457
+        self.assertAlmostEqual(twin.cost_machinery_M * 1e6, reactor + twin.cost_shafting, places=2)
+        self.assertGreater(twin.cost_shafting, 0.0)
+
+    def test_invalid_prop_count(self):
+        s, ok = solve(ship_name="Tanker", m_NumProps=3)
+        self.assertFalse(ok)
+        self.assertTrue(any("propellers" in e for e in s.solver_errors))

@@ -15,6 +15,7 @@ Facilitating a high-level analysis of differing fuel, ship types and configurati
 * **Energy Saving Devices (ESD):** Ability to model the impact of Air Lubrication Systems and Wind Assist technologies on power reduction.
 
 ### 2. Next-Gen Propulsion & Fuels
+* **Single or Twin Screw:** The Propulsion group switches between one and two propellers. Twin screw uses the Holtrop & Mennen (1984) twin-screw wake, thrust deduction and relative rotative efficiency, splits the thrust between the two propellers, adds twin appendage drag (shaft brackets, shafts, twin rudders), costs and weighs one engine per shaft, and adds an extra shaft line. "Compare single vs twin" shows both side by side (power, efficiencies, masses, capex, RFR). Monte Carlo can compare single vs twin of the same fuel.
 A multitude of alternative fuel types. The volume constraints account for specific energy density, storage volume penalties (cryogenics/insulation), and machinery mass.
 * **Conventional:** Direct/Geared Diesel, Steam Turbines, LNG (Dual Fuel).
 * **Alternative:** Hydrogen (ICE & Fuel Cell), Ammonia, Methanol, Battery Electric.

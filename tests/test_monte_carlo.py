@@ -210,3 +210,24 @@ class TestSolverAdditions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPropOptions(unittest.TestCase):
+    def test_single_vs_twin_same_fuel(self):
+        base = base_inputs()
+        r = mc.run_comparison(base, A, A, {"carbon_tax": mc.Distribution("uniform", 0, 200)},
+                              n=5, seed=1, props_a=1, props_b=2)
+        self.assertEqual((r.name_a, r.name_b), (f"{A}, single", f"{A}, twin"))
+        self.assertTrue(np.all(r.gap > 0))     # twin dearer for this full-form tanker
+        self.assertIn(f"{A}, twin", r.summary())
+        twin = solve_fuel(base, A, m_NumProps=2, m_CarbonTax=r.samples["carbon_tax"][0], m_CarbonTaxOn=True,
+                          ignspd=True, ignpth=True)
+        self.assertAlmostEqual(r.rfr_b[0], twin.Rf, places=10)
+
+    def test_same_option_rejected(self):
+        with self.assertRaises(ValueError):
+            mc.run_comparison(base_inputs(), A, A, {}, n=1, props_a=2, props_b=2)
+
+    def test_names_unchanged_when_props_match(self):
+        r = mc.run_comparison(base_inputs(), A, B, {}, n=1)
+        self.assertEqual((r.name_a, r.name_b), (A, B))

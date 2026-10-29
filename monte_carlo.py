@@ -290,8 +290,20 @@ def default_breakeven_bracket(col, base_inputs, fuel_a, fuel_b):
 # ----------------------------------------------------------------------
 # Running
 # ----------------------------------------------------------------------
-def fuel_setup(base_inputs, engine):
-    """Copy of base_inputs prepared to solve with `engine`."""
+PROP_NAMES = {1: "single", 2: "twin"}
+
+
+def option_names(fuel_a, props_a, fuel_b, props_b):
+    """Display names for the two options; ", single" / ", twin" is added
+    only when the two sides differ in propeller count."""
+    if props_a == props_b:
+        return fuel_a, fuel_b
+    return f"{fuel_a}, {PROP_NAMES[props_a]}", f"{fuel_b}, {PROP_NAMES[props_b]}"
+
+
+def fuel_setup(base_inputs, engine, n_props=None):
+    """Copy of base_inputs prepared to solve with `engine` (and, if given,
+    `n_props` propellers)."""
     if engine not in FuelConfig.DATA:
         raise KeyError(f"unknown fuel {engine!r}")
     inp = dict(base_inputs)
@@ -300,6 +312,10 @@ def fuel_setup(base_inputs, engine):
         inp["m_LHV"] = fd["LHV"] if fd["LHV"] > 0 else 42.7
     inp["m_Fuel"] = base_fuel_price(base_inputs, engine)
     inp["engine_name"] = engine
+    if n_props is not None:
+        if n_props not in PROP_NAMES:
+            raise ValueError(f"number of propellers must be 1 or 2, got {n_props}")
+        inp["m_NumProps"] = n_props
     if fd["IsNuclear"]:
         inp["m_Range"] = float("inf")
     elif math.isinf(inp.get("m_Range", 0.0)):
@@ -392,10 +408,14 @@ class ComparisonResult:
     base_breakeven_status: str = ""
     n_requested: int = 0
     cancelled: bool = False
+    name_a: str = ""          # display names (fuel, plus propeller count when
+    name_b: str = ""          # the two sides differ in it); default: the fuel
     gap: np.ndarray = field(init=False)
     ok: np.ndarray = field(init=False)
 
     def __post_init__(self):
+        self.name_a = self.name_a or self.fuel_a
+        self.name_b = self.name_b or self.fuel_b
         self.gap = self.rfr_b - self.rfr_a
         self.ok = np.isfinite(self.rfr_a) & np.isfinite(self.rfr_b)
 
@@ -435,7 +455,7 @@ class ComparisonResult:
         return {k: int(np.sum(st == k)) for k in ("B_above", "B_below", "A_always", "B_always", "failed")}
 
     def summary(self):
-        a, b = self.fuel_a, self.fuel_b
+        a, b = self.name_a, self.name_b
         n_ok = int(self.ok.sum())
         lines = [f"Monte Carlo: {a} (A) vs {b} (B)",
                  f"Samples: {n_ok} solved of {self.n}"
@@ -481,7 +501,7 @@ class ComparisonResult:
 
     def to_rows(self):
         cols = list(self.samples)
-        header = ["Sample"] + cols + [f"RFR A {self.fuel_a} ($/t)", f"RFR B {self.fuel_b} ($/t)", "Gap B-A ($/t)"]
+        header = ["Sample"] + cols + [f"RFR A {self.name_a} ($/t)", f"RFR B {self.name_b} ($/t)", "Gap B-A ($/t)"]
         if self.breakeven is not None:
             header += [f"Break-even {self.breakeven_spec.column}", "Break-even status"]
         rows = [header]
@@ -495,16 +515,22 @@ class ComparisonResult:
 
 
 def run_comparison(base_inputs, fuel_a, fuel_b, uncertain, n=1000, seed=None, method="lhs",
-                   correlations=None, breakeven=None, progress=None, cancelled=None):
+                   correlations=None, breakeven=None, progress=None, cancelled=None,
+                   props_a=None, props_b=None):
     """Sample `uncertain` ({column: Distribution}) n times and solve the ship
     with fuel A and fuel B for each sample.
 
-    base_inputs: a ShipDesignSolver.input_snapshot(). progress(i, n) is
+    props_a / props_b: 1 or 2 propellers per side (None keeps the base
+    input), so the two options may be the same fuel with single vs twin
+    screw. base_inputs: a ShipDesignSolver.input_snapshot(). progress(i, n) is
     called after each sample; if cancelled() returns True the run stops and
     returns the samples completed so far.
     """
-    if fuel_a == fuel_b:
-        raise ValueError("choose two different fuels")
+    base_props = base_inputs.get("m_NumProps", 1)
+    pa = props_a if props_a is not None else base_props
+    pb = props_b if props_b is not None else base_props
+    if (fuel_a, pa) == (fuel_b, pb):
+        raise ValueError("choose two different options (fuel or number of propellers)")
     for col in uncertain:
         column_info(col)
     if breakeven is not None:
@@ -513,7 +539,8 @@ def run_comparison(base_inputs, fuel_a, fuel_b, uncertain, n=1000, seed=None, me
             raise ValueError("break-even bracket needs lo < hi")
 
     samples = sample(uncertain, n, seed=seed, method=method, correlations=correlations)
-    base = {"A": fuel_setup(base_inputs, fuel_a), "B": fuel_setup(base_inputs, fuel_b)}
+    base = {"A": fuel_setup(base_inputs, fuel_a, pa), "B": fuel_setup(base_inputs, fuel_b, pb)}
+    name_a, name_b = option_names(fuel_a, pa, fuel_b, pb)
 
     base_a, base_b = _rfr(base["A"]), _rfr(base["B"])
     base_be, base_status = float("nan"), ""
@@ -538,7 +565,7 @@ def run_comparison(base_inputs, fuel_a, fuel_b, uncertain, n=1000, seed=None, me
 
     trim = slice(0, done)
     return ComparisonResult(
-        fuel_a=fuel_a, fuel_b=fuel_b,
+        fuel_a=fuel_a, fuel_b=fuel_b, name_a=name_a, name_b=name_b,
         samples={c: v[trim] for c, v in samples.items()},
         rfr_a=rfr_a[trim], rfr_b=rfr_b[trim],
         base_rfr_a=base_a, base_rfr_b=base_b,

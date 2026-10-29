@@ -1019,6 +1019,43 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.group_holtrop_params.setVisible(False)
         left_col.addWidget(self.group_holtrop_params)
 
+        # --- Propulsion: single vs twin screw ---
+        prop_group = QGroupBox("Propulsion")
+        prop_layout = QGridLayout()
+        self.combo_props = QComboBox()
+        self.combo_props.addItem("Single screw", 1)
+        self.combo_props.addItem("Twin screw", 2)
+        self.combo_props.setToolTip(
+            "Twin screw: one engine per shaft, Holtrop & Mennen (1984) twin-screw\n"
+            "wake, thrust deduction and relative rotative efficiency, twin appendages\n"
+            "and an extra shaft line.")
+        self.combo_props.currentIndexChanged.connect(self._reset_dlg)
+        self.edit_twin_app = QLineEdit(f"{self.m_TwinAppAreaPct:g}")
+        self.edit_twin_app.setToolTip("Twin appendage wetted area (shaft brackets, exposed shafts,\n"
+                                      "twin rudders) as % of hull wetted surface. Placeholder - edit.")
+        self.edit_twin_k2 = QLineEdit(f"{self.m_TwinK2:g}")
+        self.edit_twin_k2.setToolTip("Equivalent appendage form factor (1+k2); Holtrop 1982 gives\n"
+                                     "2.8 for twin-screw rudders, 3.0 for shaft brackets.")
+        self.edit_shaft_mass = QLineEdit(f"{self.m_ShaftMassPerKW:g}")
+        self.edit_shaft_mass.setToolTip("Mass of each additional shaft line per kW it carries. Placeholder - edit.")
+        self.edit_shaft_cost = QLineEdit(f"{self.m_ShaftCostPerKW:g}")
+        self.edit_shaft_cost.setToolTip("Cost of each additional shaft line per kW it carries. Placeholder - edit.")
+        self.btn_compare_props = QPushButton("Compare single vs twin")
+        self.btn_compare_props.clicked.connect(self.on_compare_props)
+        prop_layout.addWidget(QLabel("Propellers:"), 0, 0)
+        prop_layout.addWidget(self.combo_props, 0, 1)
+        prop_layout.addWidget(self.btn_compare_props, 0, 2, 1, 2)
+        prop_layout.addWidget(QLabel("Twin app. area (% S):"), 1, 0)
+        prop_layout.addWidget(self.edit_twin_app, 1, 1)
+        prop_layout.addWidget(QLabel("Twin app. (1+k2):"), 1, 2)
+        prop_layout.addWidget(self.edit_twin_k2, 1, 3)
+        prop_layout.addWidget(QLabel("Extra shaft (kg/kW):"), 2, 0)
+        prop_layout.addWidget(self.edit_shaft_mass, 2, 1)
+        prop_layout.addWidget(QLabel("Extra shaft ($/kW):"), 2, 2)
+        prop_layout.addWidget(self.edit_shaft_cost, 2, 3)
+        prop_group.setLayout(prop_layout)
+        left_col.addWidget(prop_group)
+
         esd_group = QGroupBox("Energy Saving Devices (ESD)")
         esd_layout = QGridLayout()
         
@@ -1615,6 +1652,12 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             self.m_Repay = _safe_float(self.edit_repay)
             self.m_ShipLife = _safe_float(self.edit_ship_life)
 
+            self.m_NumProps = self.combo_props.currentData()
+            self.m_TwinAppAreaPct = _safe_float(self.edit_twin_app, default=6.0)
+            self.m_TwinK2 = _safe_float(self.edit_twin_k2, default=2.8)
+            self.m_ShaftMassPerKW = _safe_float(self.edit_shaft_mass, default=5.0)
+            self.m_ShaftCostPerKW = _safe_float(self.edit_shaft_cost, default=150.0)
+
             # Sensitivity & retrofit knobs (chapter 5 additions).
             self.m_MethaneSlip   = _safe_float(self.edit_methane_slip,   default=0.0)
             self.m_ResUncertPct  = _safe_float(self.edit_res_uncert,     default=0.0)
@@ -1744,6 +1787,11 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.edit_interest.setText(f"{self.m_Interest:.6g}")
         self.edit_repay.setText(f"{self.m_Repay:.6g}")
         self.edit_ship_life.setText(f"{self.m_ShipLife:.6g}")
+        self.combo_props.setCurrentIndex(self.combo_props.findData(self.m_NumProps))
+        self.edit_twin_app.setText(f"{self.m_TwinAppAreaPct:.6g}")
+        self.edit_twin_k2.setText(f"{self.m_TwinK2:.6g}")
+        self.edit_shaft_mass.setText(f"{self.m_ShaftMassPerKW:.6g}")
+        self.edit_shaft_cost.setText(f"{self.m_ShaftCostPerKW:.6g}")
 
         self.check_vol_limit.setChecked(self.m_VolumeLimit)
         
@@ -2826,6 +2874,90 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         except Exception as e:
             self._show_error(f"Failed to write CSV file: {e}")
 
+    def on_compare_props(self):
+        """Solve the current form with single and twin screw and show both."""
+        if not self._update_ui_to_data():
+            return
+        snapshot = self.input_snapshot()
+        runs = {}
+        for n in (1, 2):
+            s = ShipDesignSolver().set_inputs(**snapshot)
+            s.m_NumProps = n
+            # Like the sweeps: let the solver auto-correct RPM rather than
+            # stopping on a transient pitch/speed range error.
+            s.ignspd = s.ignpth = True
+            s.dbgmd = False
+            runs[n] = (s, s.solve())
+
+        failed = [f"{'Single' if n == 1 else 'Twin'} screw: " + ("; ".join(s.solver_errors) or "no solution")
+                  for n, (s, ok) in runs.items() if not ok]
+        if failed:
+            self._show_error("Comparison could not be completed.\n\n" + "\n".join(failed), "Single vs twin")
+            if len(failed) == 2:
+                return
+
+        def val(s, ok, fn):
+            try:
+                return fn(s) if ok else float("nan")
+            except (AttributeError, ZeroDivisionError):
+                return float("nan")
+
+        econ = self.m_Econom
+        rows = [
+            ("Length Lbp (m)", lambda s: s.L1, "{:,.2f}"),
+            ("Breadth B (m)", lambda s: s.B, "{:,.2f}"),
+            ("Draught T (m)", lambda s: s.T, "{:,.2f}"),
+            ("Effective power Pe (kW)", lambda s: s.P * 0.7457, "{:,.0f}"),
+            ("Propeller diameter (m)", lambda s: s.prop_D, "{:,.2f}"),
+            ("Wake fraction w", lambda s: s.prop_w, "{:.3f}"),
+            ("Thrust deduction t", lambda s: s.prop_t, "{:.3f}"),
+            ("Hull efficiency nH", lambda s: s.prop_eta_h, "{:.3f}"),
+            ("Open-water eff. nO", lambda s: s.prop_eta_o, "{:.3f}"),
+            ("Rel. rotative eff. nR", lambda s: s.prop_eta_r, "{:.3f}"),
+            ("QPC", lambda s: s.Q, "{:.3f}"),
+            ("Service power (kW)", lambda s: s.P1 * 0.7457, "{:,.0f}"),
+            ("Installed power (kW)", lambda s: s.P2 * 0.7457, "{:,.0f}"),
+            ("Machinery mass (t)", lambda s: s.M3, "{:,.0f}"),
+            ("Lightship (t)", lambda s: (s.M1 + s.M2 + s.M3) * 1.02, "{:,.0f}"),
+            ("Cargo deadweight (t)", lambda s: s.W1, "{:,.0f}"),
+        ]
+        if econ:
+            rows += [
+                ("Build cost (M$)", lambda s: s.S, "{:,.2f}"),
+                ("Machinery capex (M$)", lambda s: s.cost_machinery_M, "{:,.2f}"),
+                ("RFR ($/t)", lambda s: s.Rf, "{:,.2f}"),
+            ]
+
+        (s1, ok1), (s2, ok2) = runs[1], runs[2]
+        lines = [f"{self.combo_ship.currentText()} with {self.combo_engine.currentText()}",
+                 f"{self.combo_resistance_method.currentText()}", "",
+                 f"{'':26s}{'Single':>12s}{'Twin':>12s}{'Twin-Single':>13s}{'%':>8s}"]
+        for label, fn, fmt in rows:
+            a, b = val(s1, ok1, fn), val(s2, ok2, fn)
+            d = b - a
+            pct = (100.0 * d / a) if a not in (0.0,) and math.isfinite(a) and math.isfinite(b) else float("nan")
+            cell = lambda v: fmt.format(v) if math.isfinite(v) else "-"
+            lines.append(f"{label:26s}{cell(a):>12s}{cell(b):>12s}{cell(d):>13s}"
+                         f"{(f'{pct:+.1f}' if math.isfinite(pct) else '-'):>8s}")
+        lines += ["", "Single screw: legacy wake/thrust formulas, nR = 1.",
+                  "Twin screw: Holtrop & Mennen (1984) twin-screw w, t, nR; one engine per",
+                  "shaft; twin appendages and shaft-line allowances from the Propulsion inputs."]
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Single vs Twin Screw")
+        dlg.resize(640, 560)
+        lay = QVBoxLayout(dlg)
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setFontFamily("Courier New")
+        text.setText("\n".join(lines))
+        lay.addWidget(text)
+        btn = QPushButton("Close")
+        btn.clicked.connect(dlg.accept)
+        lay.addWidget(btn, alignment=Qt.AlignRight)
+        self.last_props_comparison = "\n".join(lines)
+        dlg.exec()
+
     def on_open_monte_carlo(self):
         """Opens (or raises) the Monte Carlo fuel comparison window."""
         from monte_carlo_window import MonteCarloWindow
@@ -3134,6 +3266,10 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.edit_interest.setEnabled(is_econom_on)
         self.edit_repay.setEnabled(is_econom_on)
         self.edit_ship_life.setEnabled(is_econom_on)
+        is_twin = self.combo_props.currentData() == 2
+        for w in (self.edit_twin_app, self.edit_twin_k2, self.edit_shaft_mass):
+            w.setEnabled(is_twin)
+        self.edit_shaft_cost.setEnabled(is_twin and is_econom_on)
         self.btn_export_cashflow.setEnabled(
             is_econom_on and self.CalculatedOk and getattr(self, 'cash_flow', None) is not None)
 
@@ -3395,6 +3531,20 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             output_lines.append(f"   Hull Efficiency (nH) = {self.diag_eta_h:.3f}")
             output_lines.append(f"   Open Water Eff. (nO) = {self.diag_eta_o:.3f}")
             output_lines.append(f"   Total QPC (Original) = {self.Q:.3f}")
+
+            if getattr(self, 'n_props', None):
+                # The factors the propeller solve actually used (single screw:
+                # legacy wake/thrust formulas, etaR = 1; twin: Holtrop 1984).
+                output_lines.append(f"  ------- Propulsion ({'twin' if self.n_props == 2 else 'single'} screw):")
+                output_lines.append(f"   Propellers = {self.n_props}  D = {self.prop_D:.2f} m  P/D = {self.prop_PD:.3f}")
+                output_lines.append(f"   Thrust per propeller = {self.prop_thrust_each_kN:,.1f} kN")
+                output_lines.append(f"   Wake w = {self.prop_w:.3f}  Thrust ded. t = {self.prop_t:.3f}")
+                output_lines.append(f"   nH = {self.prop_eta_h:.3f}  nO = {self.prop_eta_o:.3f}  nR = {self.prop_eta_r:.3f}"
+                                    f"  QPC = {self.Q:.3f}")
+                if self.n_props == 2:
+                    if getattr(self, 'twin_app_extra_kN', 0.0) > 0:
+                        output_lines.append(f"   Twin appendage extra drag = {self.twin_app_extra_kN:,.1f} kN")
+                    output_lines.append(f"   Extra shaft line: {getattr(self, 'M_shafting', 0.0):,.1f} t")
 
             if self.check_aux_enable.isChecked():
                 output_lines.append("\r\n  ------- Power & Hotel Analysis:")
