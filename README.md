@@ -98,7 +98,12 @@ python main.py
 * `monte_carlo.py`: Qt-free Monte Carlo fuel comparison (`run_comparison`, distributions, Latin hypercube sampling, break-even search). `monte_carlo_window.py` is its GUI.
 * `ship_config.py`: Static tables: `FuelConfig` (LHV, density, efficiency, mass/volume factors per fuel), `ShipConfig` (per-ship-type constants, EEDI/CII reference lines), `ResistanceMethodConfig`, `EmpiricalBasisConfig`.
 * `RouteDialog`: A popup module used to calculate operational profiles and power factors for specific global trade routes.
+* `ship_database.py`: Scripted, audited cleaning of the raw SEA-Japan database (`boat_database_V2.csv`) into `data/ships_clean.csv`, with an audit trail, rejected rows, a review sample, manual `data/overrides.csv`, and a fit/validate split by delivery year.
+* `fit_basis.py`: Refits the empirical L/B/D/T regressions on the clean fit split only. The result loads as the extra basis "Japan clean (fit split)"; the existing bases are unchanged.
+* `validate_model.py`: Redesigns every validation-split ship at its type, speed and deadweight, and compares Lbp, B, T and power with the real ship for Taylor/Holtrop × Legacy/Japan-clean basis × Auto-RPM off/on. Writes per-ship results, `metrics.csv`, figures and `validation_report.md` to `data/validation/`.
 * `tests/`: Headless unit tests (`python -m unittest discover tests`).
+
+**Auto-adjust propeller RPM** (Propulsion group, off by default): with it off the solver behaves exactly as before. With it on, the solver's existing RPM correction is applied inside the sizing loop whenever the propeller pitch leaves 0.5–1.4, so large slow-speed ships no longer fail at the default 120 rpm. Designs that already solve are unchanged.
 
 ### Running the solver without the GUI
 

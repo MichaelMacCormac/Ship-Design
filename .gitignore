@@ -40,6 +40,9 @@ Thumbs.db
 # Output files
 SDout.txt
 *.csv
+# ...except the versioned clean dataset and validation results
+!data/*.csv
+!data/validation/*.csv
 
 # Logs
 *.log

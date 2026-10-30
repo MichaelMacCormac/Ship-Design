@@ -584,6 +584,8 @@ def plausibility(rec):
     dwt, gt, spd = v.get("DWT"), v.get("GT"), v.get("speed_kn")
     if L is not None and not 20 <= L <= 420:
         rec.flag("L_out_of_range")
+    if B is not None and not 2.0 <= B <= 70.0:
+        rec.flag("B_out_of_range")
     if L and B and not 3.0 <= L / B <= 10.0:
         rec.flag("L/B_out_of_range")
     if B and T and not 1.8 <= B / T <= 6.0:
@@ -836,6 +838,54 @@ def build_summary(raw_rows, kept, rejected, merged, cutoff, n_over, input_path):
     lines.append(f"Unmapped vessel_type strings ({len(other)}): "
                  + "; ".join(f"{t!r} x{n}" for t, n in other.most_common(40)))
     return "\n".join(lines) + "\n"
+
+
+# ----------------------------------------------------------------------
+# Reading the clean dataset (shared by fit_basis.py and validate_model.py)
+# ----------------------------------------------------------------------
+# Lbp/LOA by tool type: a stated assumption (typical values; the source
+# gives LOA). Validation also reports length errors at +/-1 % on these.
+LBP_OVER_LOA = {"Tanker": 0.97, "Bulk carrier": 0.97, "Container Ship": 0.95,
+                "Cargo vessel": 0.95, "Cruise Ship": 0.90, "Superyacht": 0.88}
+
+# A plausibility flag removes the fields it casts doubt on from fits and
+# comparisons; the ship itself stays in for its other fields.
+FIELD_EXCLUDED_BY = {
+    "LOA_m": ("L_out_of_range", "L/B_out_of_range", "L/D_out_of_range"),
+    "B_m": ("B_out_of_range", "L/B_out_of_range", "B/T_out_of_range"),
+    "D_m": ("T>=D", "L/D_out_of_range"),
+    "T_m": ("T>=D", "B/T_out_of_range", "DWT_coefficient_too_high"),
+    "DWT": ("DWT_coefficient_too_high", "GT/DWT_atypical_for_class"),
+    "speed_kn": ("speed_out_of_range",),
+    "power_kW": ("admiralty_coefficient_atypical", "power_per_unit_count_unknown"),
+}
+
+
+def load_clean(path=os.path.join("data", "ships_clean.csv")):
+    with open(path, encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def field_value(row, field):
+    """Float value of a clean-dataset field, or None if missing or flagged."""
+    raw = row.get(field, "")
+    if raw in ("", None):
+        return None
+    flags = set((row.get("flags") or "").split(";"))
+    if flags & set(FIELD_EXCLUDED_BY.get(field, ())):
+        return None
+    return float(raw)
+
+
+def lbp(row, ratio_shift=0.0):
+    """Lbp from LOA with the type ratio (shifted by ratio_shift, e.g. +0.01),
+    or the value as given when the source already stated Lbp."""
+    loa = field_value(row, "LOA_m")
+    if loa is None:
+        return None
+    if "length_is_lbp" in (row.get("flags") or ""):
+        return loa
+    return loa * (LBP_OVER_LOA.get(row.get("tool_type"), 0.96) * (1.0 + ratio_shift))
 
 
 def main():

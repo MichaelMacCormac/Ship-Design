@@ -4,10 +4,10 @@ Raw rows:                 1792
 Kept:                     1625
 Rejected / merged:        167  {'design_or_concept_not_a_built_ship': 4, 'no_length_and_no_deadweight': 132, 'no_name': 4, 'duplicate_of': 27}
 Manual overrides applied: 0
-Rows rebuilt by unit (realigned): 518
+Rows rebuilt by unit (realigned): 519
 
 Flags (kept ships):
-  realigned_row                        518
+  realigned_row                        519
   third_dimension_by_ratio              78
   approx_tonnage                        66
   tonnage_by_ratio                      50
@@ -16,13 +16,14 @@ Flags (kept ships):
   approx_LOA_m                          37
   ambiguous_tonnage                     32
   loa_missing                           21
-  L/B_out_of_range                      10
+  L/B_out_of_range                       9
   admiralty_coefficient_atypical         9
   B/T_out_of_range                       8
   length_is_lbp                          6
   ambiguous_third_dimension              4
   DWT_coefficient_too_high               3
   L_out_of_range                         3
+  B_out_of_range                         3
   T>=D                                   3
   approx_B_m                             2
   speed_out_of_range                     2

@@ -115,6 +115,11 @@ class ShipDesignSolver:
         self.m_FSCAllowance = 0.10       # m, free-surface allowance for below-deck tanks (placeholder)
         self.m_AutoBeam = False          # widen the beam until the stability checks pass
 
+        # Off = original behaviour. On: a propeller pitch outside 0.5-1.4 in
+        # the sizing loop applies the solver's existing RPM correction
+        # (x1.05 / x0.95, up to 15 tries) instead of failing the design.
+        self.m_AutoRPM = False
+
         # Per-run override of fuel_data["Carbon"] (tCO2 / t fuel).  None
         # means "use the FuelConfig value".  Set by the Battle Mode dialog
         # so each engine can be evaluated against a user-tweaked carbon
@@ -405,7 +410,7 @@ class ShipDesignSolver:
         widened 3 % per step (up to 30 steps), until it passes; the user's
         L/B and B settings are restored afterwards.
         """
-        ok = self._solve_once()
+        ok = self._solve_guarded()
         self.auto_beam_steps = 0
         self.B_original = self.B
         if not (ok and self.m_AutoBeam and self.design_mode != 1 and not self.stability_ok):
@@ -417,7 +422,7 @@ class ShipDesignSolver:
             for step in range(1, 31):
                 beam *= 1.03
                 self.m_Lbratio, self.m_Bvalue, self.m_BvalueV = False, True, beam
-                ok = self._solve_once()
+                ok = self._solve_guarded()
                 self.auto_beam_steps = step
                 if not ok or self.stability_ok:
                     break
@@ -425,6 +430,59 @@ class ShipDesignSolver:
             self.m_Lbratio, self.m_Bvalue, self.m_BvalueV = saved
         self._log(f"[Auto-beam: B {self.B_original:.2f} -> {self.B:.2f} m in {self.auto_beam_steps} step(s); "
                   f"stability {'OK' if ok and self.stability_ok else 'still failing'}]")
+        return ok
+
+    def _solve_guarded(self):
+        """_solve_once(), turning a numerical crash into a reported failure.
+
+        Some infeasible inputs drive a negative value through a fractional
+        power; Python then yields a complex number and a later comparison
+        raises TypeError. That is a failed design, not a program error.
+        """
+        self.rpm_initial = self.m_Prpm
+        saved_ignpth = self.ignpth
+        if self.m_AutoRPM:
+            self.ignpth = True
+        try:
+            ok = self._solve_once()
+        except TypeError as e:
+            if "complex" not in str(e):
+                raise
+            self._show_error("Numerical failure: a negative value went through a fractional power "
+                             "(complex result). The design did not converge for these inputs.",
+                             "Fatal error")
+            self.m_Cargo = getattr(self, "design_mode", self.m_Cargo)
+            self.CalculatedOk = False
+            ok = False
+        finally:
+            self.ignpth = saved_ignpth
+        self.rpm_final = self.N2
+        self.rpm_adjusted = bool(ok) and abs(self.rpm_final - self.rpm_initial) > 1e-9
+        return ok
+
+    def _power_auto(self):
+        """_power(), plus the RPM correction when m_AutoRPM is on.
+
+        With m_AutoRPM off this is exactly _power(). With it on, a pitch
+        flagged out of range (in batch mode _power returns True with the
+        code set) is corrected with the same rule as the post-loop retry:
+        RPM x1.05 if P/D > 1.4, x0.95 if P/D < 0.5, up to 15 times.
+        """
+        ok = self._power()
+        if not (self.m_AutoRPM and ok):
+            return ok
+        for _ in range(15):
+            if self.Kpwrerr % self.PITCH_LOW == 0:
+                self.N2 *= 1.05
+                self.N1 *= 1.05
+            elif self.Kpwrerr % self.PITCH_HIGH == 0:
+                self.N2 *= 0.95
+                self.N1 *= 0.95
+            else:
+                break
+            ok = self._power()
+            if not ok:
+                break
         return ok
 
     def _solve_once(self):
@@ -645,7 +703,7 @@ class ShipDesignSolver:
                 self.M = 1.025 * self.L1 * self.B * self.T * self.C
                 if not self._stability(): return False
 
-                if not self._power():
+                if not self._power_auto():
                      return False
 
                 if not self._mass(): return False
@@ -725,6 +783,9 @@ class ShipDesignSolver:
 
             retries += 1
 
+        if self.m_AutoRPM and self.Kpwrerr != 1:
+            self._power_auto()
+
         if self.Kpwrerr != 1:
             self._log("\nERROR: Propeller design fundamentally failed!")
             self._log("The physics engine cannot balance the thrust required for this weight/speed.")
@@ -736,7 +797,7 @@ class ShipDesignSolver:
 
         self._power()
 
-        if not self._power(): return False
+        if not self._power_auto(): return False
 
         self._apply_resistance_breakdown()
 

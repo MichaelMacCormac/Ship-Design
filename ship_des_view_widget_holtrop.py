@@ -1055,6 +1055,12 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         prop_layout.addWidget(self.edit_shaft_mass, 2, 1)
         prop_layout.addWidget(QLabel("Extra shaft ($/kW):"), 2, 2)
         prop_layout.addWidget(self.edit_shaft_cost, 2, 3)
+        self.check_auto_rpm = QCheckBox("Auto-adjust propeller RPM if pitch out of range")
+        self.check_auto_rpm.setToolTip(
+            "Off (default): original behaviour - a propeller pitch outside 0.5-1.4 during sizing\n"
+            "fails the design. On: the solver's existing RPM correction (x1.05 / x0.95, up to 15\n"
+            "tries) is applied inside the sizing loop. Designs that solve with it off are unchanged.")
+        prop_layout.addWidget(self.check_auto_rpm, 3, 0, 1, 4)
         prop_group.setLayout(prop_layout)
         left_col.addWidget(prop_group)
 
@@ -1717,6 +1723,7 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
             self.m_ShaftMassPerKW = _safe_float(self.edit_shaft_mass, default=5.0)
             self.m_ShaftCostPerKW = _safe_float(self.edit_shaft_cost, default=150.0)
 
+            self.m_AutoRPM = self.check_auto_rpm.isChecked()
             self.m_GMRequired = _safe_float(self.edit_gm_req, default=0.15)
             self.m_FSCAllowance = _safe_float(self.edit_fsc, default=0.10)
             self.m_AutoBeam = self.check_auto_beam.isChecked()
@@ -1862,6 +1869,7 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
         self.edit_twin_k2.setText(f"{self.m_TwinK2:.6g}")
         self.edit_shaft_mass.setText(f"{self.m_ShaftMassPerKW:.6g}")
         self.edit_shaft_cost.setText(f"{self.m_ShaftCostPerKW:.6g}")
+        self.check_auto_rpm.setChecked(self.m_AutoRPM)
         self.edit_gm_req.setText(f"{self.m_GMRequired:.6g}")
         self.edit_fsc.setText(f"{self.m_FSCAllowance:.6g}")
         self.check_auto_beam.setChecked(self.m_AutoBeam)
@@ -3691,6 +3699,9 @@ class ShipDesViewWidget(QWidget, ShipDesignSolver):
                 # legacy wake/thrust formulas, etaR = 1; twin: Holtrop 1984).
                 output_lines.append(f"  ------- Propulsion ({'twin' if self.n_props == 2 else 'single'} screw):")
                 output_lines.append(f"   Propellers = {self.n_props}  D = {self.prop_D:.2f} m  P/D = {self.prop_PD:.3f}")
+                if getattr(self, 'rpm_adjusted', False):
+                    output_lines.append(f"   Auto-RPM: propeller RPM {self.rpm_initial:.1f} -> {self.rpm_final:.1f}"
+                                        " to keep pitch in range")
                 output_lines.append(f"   Thrust per propeller = {self.prop_thrust_each_kN:,.1f} kN")
                 output_lines.append(f"   Wake w = {self.prop_w:.3f}  Thrust ded. t = {self.prop_t:.3f}")
                 output_lines.append(f"   nH = {self.prop_eta_h:.3f}  nO = {self.prop_eta_o:.3f}  nR = {self.prop_eta_r:.3f}"

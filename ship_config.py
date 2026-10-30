@@ -3,6 +3,8 @@
 Fuel/engine properties, ship-type constants, resistance-method metadata and
 the empirical dimensional bases.  Pure data - no Qt, no solver state.
 """
+import json
+import os
 
 
 class FuelConfig:
@@ -461,3 +463,26 @@ class EmpiricalBasisConfig:
             return b[ship_type]
         legacy = EmpiricalBasisConfig.DATA["Legacy (Watson/Gilfillan 1977)"]
         return legacy.get(ship_type, legacy["Tanker"])
+
+
+BASIS_COEF_KEYS = ("L_a", "L_b", "L_c", "LB_m", "LB_c", "LD_m", "LD_c", "DT_m", "DT_c")
+CLEAN_BASIS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "japan_basis_clean.json")
+
+
+def load_fitted_basis(path=CLEAN_BASIS_FILE):
+    """Add the basis refitted by fit_basis.py (clean dataset, fit split only)
+    to EmpiricalBasisConfig if its JSON exists. Returns the basis name, or
+    None when there is no file. Existing bases are never modified."""
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    name = doc["basis_name"]
+    EmpiricalBasisConfig.DATA[name] = {
+        ship_type: {k: coefs.get(k) for k in BASIS_COEF_KEYS}
+        for ship_type, coefs in doc["types"].items()
+    }
+    return name
+
+
+load_fitted_basis()
