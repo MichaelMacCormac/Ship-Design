@@ -1,0 +1,41 @@
+Cleaning summary for boat_database_V2.csv
+
+Raw rows:                 1792
+Kept:                     1625
+Rejected / merged:        167  {'design_or_concept_not_a_built_ship': 4, 'no_length_and_no_deadweight': 132, 'no_name': 4, 'duplicate_of': 27}
+Manual overrides applied: 0
+Rows rebuilt by unit (realigned): 518
+
+Flags (kept ships):
+  realigned_row                        518
+  third_dimension_by_ratio              78
+  approx_tonnage                        66
+  tonnage_by_ratio                      50
+  GT/DWT_atypical_for_class             44
+  L/D_out_of_range                      43
+  approx_LOA_m                          37
+  ambiguous_tonnage                     32
+  loa_missing                           21
+  L/B_out_of_range                      10
+  admiralty_coefficient_atypical         9
+  B/T_out_of_range                       8
+  length_is_lbp                          6
+  ambiguous_third_dimension              4
+  DWT_coefficient_too_high               3
+  L_out_of_range                         3
+  T>=D                                   3
+  approx_B_m                             2
+  speed_out_of_range                     2
+  power_per_unit_count_unknown           1
+
+Temporal split cutoff: delivered >= 2017 -> validate
+tool_type          fit  validate    with L,B,T,DWT (fit/val)
+(none)             234       104             134/56
+Bulk carrier       573       211             438/127
+Cargo vessel        42        12              25/6
+Container Ship      83        29              66/15
+Cruise Ship          7         7               0/2
+Tanker             245        78             191/29
+
+Ship classes: Bulk carrier 784, Tanker 323, Container ship 112, Gas carrier 87, Car carrier / Ro-Ro 83, LNG carrier 76, Ferry / RoPax 59, General cargo 54, Other 31, Passenger / cruise 14, Unknown 2
+Unmapped vessel_type strings (30): 'null' x2; 'Platform supply vessel' x2; 'ocean-going tugboat' x2; 'Training and research ship' x1; 'Jack-Up Vessel (JUV)' x1; 'Whaling mothership' x1; 'Hydrogen Dual-Fuel Tugboat' x1; 'Semi-submersible marine observation boat' x1; 'TSL (super high-speed ship)' x1; 'Techno Superliner (TSL)' x1; 'trailing suction hopper dredger/oil recovery vessel' x1; 'deep-sea drilling vessel' x1; 'disaster response ship' x1; 'trailing suction hopper dredger' x1; 'round haul netter' x1; 'Trailing Hopper Dredger' x1; 'Anchor handling tug and supply vessel (AHTSV)' x1; 'Harbour tug' x1; 'module carrier' x1; 'Icebreaker' x1; 'special combination carrier' x1; 'marine resource research vessel' x1; 'Seismic vessel' x1; 'Ocean towing salvage tug' x1; 'Platform Supply Vessel (PSV)' x1; 'Tugboat/disaster prevention ship' x1; 'Training vessel' x1; 'self-propelled versatile workvessel' x1; 'High-speed catamaran-type hydrofoil craft' x1; 'Fishery exploration and training ship' x1
