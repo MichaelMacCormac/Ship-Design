@@ -206,6 +206,55 @@ class TestPipeline(unittest.TestCase):
         self.assertTrue(any(a[1] == "T_m" and a[5].startswith("manual override") for a in fixed.audit))
         self.assertTrue(any(why.startswith("manual") for _, why in rejected3))
 
+    def test_reject_column_commas_and_problems(self):
+        rows = [row(boat_name=f"S{i}", vessel_type="Tanker", delivery_date=f"May 1, {2010 + i}",
+                    dim_length_oa="200m", dim_breadth="32m", ton_deadweight="50,000t") for i in range(4)]
+        d, kept, _, _ = self._run(rows)
+        ids = [r.id for r in kept]
+        ov = os.path.join(d, "ov.csv")
+        with open(ov, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["ship_id", "field", "value", "note", "reject"])
+            w.writerow([ids[0], "DWT", "37,160", "", ""])            # thousands separator
+            w.writerow([ids[1], "", "", "Not relevant", "reject"])    # reject column
+            w.writerow([ids[2], "GT", "", "", ""])                    # blank value clears
+            w.writerow([ids[3], "DWT", "abc", "", ""])                # bad number: reported
+            w.writerow(["ffffffffff", "DWT", "1", "", ""])            # unknown ship: reported
+        kept2, rejected2, _, summary = sd.run(os.path.join(d, "in.csv"), os.path.join(d, "out"), overrides=ov)
+        by = {r.id: r for r in kept2}
+        self.assertEqual(by[ids[0]].v["DWT"], 37160.0)
+        self.assertNotIn(ids[1], by)
+        self.assertIn((ids[1], "manual: Not relevant"), [(r.id, why) for r, why in rejected2])
+        self.assertIsNone(by[ids[2]].v.get("GT"))
+        self.assertEqual(by[ids[3]].v["DWT"], 50000.0)             # unchanged
+        self.assertIn("Override rows NOT applied (2)", summary)
+
+    def test_review_marks_survive_rerun(self):
+        rows = [row(boat_name=f"S{i}", vessel_type="Tanker", dim_length_oa="200m", dim_breadth="32m",
+                    ton_deadweight="50,000t") for i in range(3)]
+        d, kept, _, _ = self._run(rows)
+        out = os.path.join(d, "out")
+        path = os.path.join(out, "review_sample.csv")
+        with open(path, encoding="utf-8") as f:
+            sample = list(csv.DictReader(f))
+        sample[0]["verified"] = "Yes"
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(sample[0].keys()))
+            w.writeheader()
+            w.writerows(sample)
+        sd.run(os.path.join(d, "in.csv"), out)
+        with open(path, encoding="utf-8") as f:
+            again = {r["ship_id"]: r for r in csv.DictReader(f)}
+        self.assertEqual(again[sample[0]["ship_id"]]["verified"], "Yes")
+
+    def test_bare_year_in_delivery_column(self):
+        c = clean(boat_name="KOHYOHSAN", vessel_type="Capesize bulk carrier", delivery_date="2001",
+                  ton_deadweight="172,000DWT", source_file="Sea318.pdf")
+        self.assertEqual(c.v.get("delivery_year"), 2001)
+        self.assertIsNone(c.v.get("GT"))
+        self.assertEqual(c.v.get("DWT"), 172000.0)
+        self.assertNotIn("realigned_row", c.flags)
+
 
 @unittest.skipUnless(os.path.exists(V2), "raw V2 database not present")
 class TestRealDatabase(unittest.TestCase):

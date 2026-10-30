@@ -43,11 +43,11 @@ b9dd32dc58,DARYA RAPTI,Log/bulk carrier,Bulk carrier,Bulk carrier,"The Hakodate 
 ded2575897,AOI,passenger/vehicle carrier,Passenger / cruise,Cruise Ship,Naikai Zosen Corporation,,2022,131.76,21,13.05,5.5,design,5110,2713,18.6,6610,1,167,,JG (Limited to coastal service),SEA-Japan-No.-416.pdf,validate,realigned_row
 d1db5d6afc,LUPINUS PLANET,LPG carrier,Gas carrier,,"Kawasaki Heavy Industries, Ltd.",1753,2022,229.9,37.2,21.9,11.6,unknown,49943,55091,17,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row
 3dc13f644a,EVER RADIANCE,Panamax bulker,Bulk carrier,Bulk carrier,"Shin Kurushima Sanoyas Shipbuilding Co., Ltd.",1382,2022,229,32.24,20.15,14.594,unknown,43453,81951,14.2,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row
-bd5c9179c3,MAPUTI,cargo ship of 'tween deck type,General cargo,Cargo vessel,"Onomichi Dockyard Co., Ltd.",779,2022,,23.6,15.85,,,13300,17500,,2625,1,111.8,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio
+bd5c9179c3,MAPUTI,cargo ship of 'tween deck type,General cargo,Cargo vessel,"Onomichi Dockyard Co., Ltd.",779,2022,130,23.6,15.85,,,13300,17500,,2625,1,111.8,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 6a642bfc25,NAVIOS ASTRA,G-series Dunkirkmax bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation (JMU),,2022,292,45,24.55,18.234,unknown,93297,182393,15.05,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row
 616ce7c885,FEDERAL POWER,Bulk carrier,Bulk carrier,Bulk carrier,,11012,2022,182.998,32.26,15,10.542,unknown,25831,42692,14,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row
-2fd2f0f7da,NEWBURY,Crude oil carrier,Tanker,Tanker,,1410,2022,,44,21.8,,,60100,112100,15,,,,,LR,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio
-547a00e2d2,CHEMROAD JUPITER,Chemical tanker,Tanker,Tanker,,S-6132,2022,,28.2,17.2,,,23464,35722,14.5,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio
+2fd2f0f7da,NEWBURY,Crude oil carrier,Tanker,Tanker,,1410,2022,228.96,44,21.8,,,60100,112100,15,,,,,LR,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
+547a00e2d2,CHEMROAD JUPITER,Chemical tanker,Tanker,Tanker,,S-6132,2022,166.5,28.2,17.2,,,23464,35722,14.5,,,,,ClassNK,SEA-Japan-No.-416.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 4665a0dafc,SHOFU MARU,"100,000 DWT class bulk carrier",Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.","Mitsui O.S.K. Lines, Ltd.",2022,,43,20.05,12.83,unknown,58209,100000,14.3,,,,,"Coal (approx. 90,000t)",Sea420.pdf,validate,
 0cf9789bac,MARKO MARULIC,Ocean-going LPG carrier,Gas carrier,,"Sasaki Shipbuilding Co., Ltd.",,2022,116.82,19,9.1,6.8,unknown,6515,7261,13,3000,1,,,"7,524m³ (3,750m³ x 2)",SEA-Japan-No.-417.pdf,validate,
 f122d57151,WAN HAI 357,"3,013TEU-type container ship",Container ship,Container Ship,Japan Marine United Corporation,Wan Hai Lines (Singapore) Pte. Ltd.,2022,203.5,34.8,16.6,11.5,unknown,30776,36776,21.5,,,,,,SEA-Japan-No.-417.pdf,validate,
@@ -82,8 +82,8 @@ eb7afa4c2e,WORLD SEAFARER,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier
 7b933e3769,PENGHU,RO/RO passenger ferry,Ferry / RoPax,,Naikai Zosen Corporation,,2023,119.99,21,8,5.5,unknown,9932,1915,19.3,,,,,CR,SEA-Japan-No.-421.pdf,validate,realigned_row
 548707e02d,WAN HAI 366,Container ship,Container ship,Container Ship,,,,203.5,34.8,16.6,11.5,unknown,30676,37160,21.5,,,,,DNV/CR,SEA-Japan-No.-421.pdf,fit,realigned_row
 0ee032e5f5,OG GINKGO,Chip carrier,Bulk carrier,Bulk carrier,,,,209.97,37,22.8,11.553,unknown,49759,60683,14.5,,,,,ClassNK,SEA-Japan-No.-421.pdf,fit,realigned_row
-c6c8fd1627,PRINCESA GUAYARMINA,Refrigerated cargo ship,General cargo,Cargo vessel,,,,,12.4,8.1,,,2156,1446,12.5,,,,,ClassNK,SEA-Japan-No.-421.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;GT/DWT_atypical_for_class
-a09ec1378e,GLANZ CORAL,General cargo ship,General cargo,Cargo vessel,,,,,21.2,14.05,,,9943,13542,12,,,,,ClassNK,SEA-Japan-No.-421.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+c6c8fd1627,PRINCESA GUAYARMINA,Refrigerated cargo ship,General cargo,Cargo vessel,,,,75.2,12.4,8.1,,,2156,1446,12.5,,,,,ClassNK,SEA-Japan-No.-421.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override;GT/DWT_atypical_for_class
+a09ec1378e,GLANZ CORAL,General cargo ship,General cargo,Cargo vessel,,,,114,21.2,14.05,,,9943,13542,12,,,,,ClassNK,SEA-Japan-No.-421.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 94e5c696e5,LEMESSOS QUEEN,Bulk carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipbuilding Co., Ltd.",,,229,32.26,20.15,,,44000,82400,14.3,,,,,BV,SEA-Japan-No.-421.pdf,fit,realigned_row
 b1bb78e32a,FRONTIER SPIRIT,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation,N181BC,2023,292,45,24.55,18.2,unknown,93367,182461,14.4,,,,,ClassNK,SEA-Japan-No.-422.pdf,validate,realigned_row
 8eb2a59bb8,PEDHOULAS TRADER,Panamax bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Sanoyas Shipbuilding Co., Ltd.",,2023,229,32.24,20.15,14.594,unknown,43429,81950,14.2,,,,,ClassNK,SEA-Japan-No.-422.pdf,validate,realigned_row
@@ -94,9 +94,9 @@ ec297796f9,FERRY OSUMI NO.11,Coastal passenger-cum-automobile transport ship,Car
 9a79ab8edd,SHOYO,LNG dual-fueled coal carrier,LNG carrier,,"Oshima Shipbuilding Co., Ltd.",,2023,234.98,38,20.16,14.35,unknown,54633,95233,14,9400,1,81,,ClassNK,SEA-Japan-No.-422.pdf,validate,realigned_row
 ebc431bdea,BUNUN VICTORY,"40,000DWT type bulk carrier",Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",915,,182.94,31.6,14.8,10.37,unknown,24472,40074,13.6,,,,,ClassNK,SEA-Japan-No.-422.pdf,fit,realigned_row
 c9da841c73,JFE KOKURYU,Roll-on/roll-off ship,Car carrier / Ro-Ro,,Japan Marine United Corporation,5386,2023,115,22,,,,8611,5026,14.7,,,,,,SEA-Japan-No.-422.pdf,validate,realigned_row
-f2464b14e7,ANDROMEDA,Crude oil carrier,Tanker,Tanker,,1413,,,44,21.55,,,60000,114800,14.5,,,,,LR,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
-da79894ae1,GREEN FAIRY,Bulk carrier,Bulk carrier,Bulk carrier,,S-6181/S-7377,,,23,12.3,,,11361,16905,12.85,,,,,ClassNK,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
-3992717196,MORNING KATE,Pressurised-type LPG carrier,Gas carrier,,,720,,,17.7,,,,4551,5274,13.4,2200,1,178,,BV,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;ambiguous_third_dimension
+f2464b14e7,ANDROMEDA,Crude oil carrier,Tanker,Tanker,,1413,,239.67,44,21.55,,,60000,114800,14.5,,,,,LR,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
+da79894ae1,GREEN FAIRY,Bulk carrier,Bulk carrier,Bulk carrier,,S-6181/S-7377,,130,23,12.3,,,11361,16905,12.85,,,,,ClassNK,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
+3992717196,MORNING KATE,Pressurised-type LPG carrier,Gas carrier,,,720,,95.3,17.7,,,,4551,5274,13.4,2200,1,178,,BV,SEA-Japan-No.-422.pdf,fit,realigned_row;loa_missing;ambiguous_third_dimension;manual_override
 47d1f69f2a,PHOENIX HARMONIA,LPG/Ammonia carrier,Gas carrier,,"Namura Shipbuilding Co., Ltd.",,2023,230,36.6,,12,unknown,,,,,,,,,SEA-Japan-No.-423.pdf,validate,realigned_row;third_dimension_by_ratio
 8484a08b4b,BRIGHT SAKURA,Containership,Container ship,Container Ship,Naikai Zosen Corporation,,2023,185.99,35.2,17.2,9.5,unknown,29622,27853,18.5,12070,1,,2888,Approx. 18.5kt,SEA-Japan-No.-423.pdf,validate,realigned_row
 ff14db6db2,ONE INSPIRATION,Containership,Container ship,Container Ship,Japan Marine United Corporation (JMU),,2023,399.95,61.4,33.2,16.5,unknown,,,,,,,24000,,SEA-Japan-No.-423.pdf,validate,realigned_row
@@ -109,25 +109,25 @@ b4134a668b,Limestone bulk carrier,Bulker,Bulk carrier,Bulk carrier,"Kawasaki Hea
 fa78f34efc,SPRING HARMONY,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation (JMU),,2024,292,45,24.55,18.2,unknown,93367,182498,14.4,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
 117b5c6b8b,LOWLANDS IYO,Panamax bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Sanoyas Shipbuilding Co., Ltd.",,2024,229,32.24,20.15,14.594,unknown,43455,82019,14.1,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
 4650ad53f2,CERULEAN ACE,LNG-fueled vehicle carrier,LNG carrier,,"Shin Kurushima Dockyard Co., Ltd. (SKDY)",6201,2024,199.96,38,,9.95,unknown,73132,19889,18,10450,1,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
-9a74574232,SHIMOKITA MARU,Self-unloader limestone carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipbuilding Co., Ltd.",,2024,93.78,18.2,9.9,,,5154,5646,12.9,3560,1,,,12.9 knots,SEA-Japan-No.431.pdf,validate,realigned_row;GT/DWT_atypical_for_class
+9a74574232,SHIMOKITA MARU,Self-unloader limestone carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipbuilding Co., Ltd.",,2024,93.78,18.2,9.9,,,5154,,12.9,3560,1,,,12.9 knots,SEA-Japan-No.431.pdf,validate,realigned_row;manual_override
 bad64fa6fc,HENG MAY,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",,2024,291.92,45,,18.2,unknown,93555,182268,,,,,,ABS,SEA-Japan-No.-425.pdf,validate,realigned_row;third_dimension_by_ratio
 de42bdc38c,BO MAY,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",,2024,291.92,45,,18.2,unknown,93555,182317,,,,,,ABS,SEA-Japan-No.-425.pdf,validate,realigned_row;third_dimension_by_ratio
 24cecf6b05,MAERSK FORTALEZA,Container carrier,Container ship,Container Ship,"Imabari Shipbuilding Co., Ltd.",,2024,254.94,40,21.7,,,57872,76521,21.5,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
 fd2d177b9d,WAN HAI 372,Container ship,Container ship,Container Ship,Japan Marine United Corporation,5509,2024,203.5,34.8,16.6,11.5,unknown,30676,37160,21.6,,,,3055,DNV,SEA-Japan-No.-425.pdf,validate,realigned_row
 189709f4e7,CATHERINE,"40,000DWT-type bulk carrier",Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",921,2024,182.94,31.6,14.8,10.37,unknown,24427,40544,13.6,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
 e5e02a7433,CASABLANCA TIGER,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",11073,2024,189.99,32.26,18.54,13.062,unknown,32680,58506,14.3,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row
-b99f5ba772,OCEAN BLISS,Bulk carrier,Bulk carrier,Bulk carrier,"Saiki Heavy Industries Co., Ltd./Onomichi Dockyard Co., Ltd.",597,2024,,32,,,,25200,40000,14.9,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row;loa_missing;ambiguous_third_dimension
+b99f5ba772,OCEAN BLISS,Bulk carrier,Bulk carrier,Bulk carrier,"Saiki Heavy Industries Co., Ltd./Onomichi Dockyard Co., Ltd.",597,2024,174,32,14.8,,,25200,40000,14.9,,,,,ClassNK,SEA-Japan-No.-425.pdf,validate,realigned_row;loa_missing;ambiguous_third_dimension;manual_override
 5e060b3598,KEYS Azalea,LNG bunkering vessel,LNG carrier,,"Mitsubishi Shipbuilding Co., Ltd.",1234,2024,82.4,18.2,7.8,4.8,unknown,,,,3510,3,,,,SEA-Japan-No.-427-3.pdf,validate,realigned_row
-7dcf6743c1,MAERSK EL BANCO,Containership,Container ship,Container Ship,Japan Marine United Corporation (JMU),,2024,,51,27.1,16,unknown,127832,152237,22,,,,12800,22.0kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing
+7dcf6743c1,MAERSK EL BANCO,Containership,Container ship,Container Ship,Japan Marine United Corporation (JMU),,2024,335,51,27.1,16,unknown,127832,152237,22,,,,12800,22.0kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing;manual_override
 8f6c2738f7,BASIC STAR,Panamax bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Sanoyas Shipbuilding Co., Ltd.",,2024,229,32.24,20.15,14.594,scantling,43455,81947,,,,,,"Approx. 14,1kt",SEA-Japan-No.-427-3.pdf,validate,realigned_row
 c1f5ba514f,TURQUOISE ACE,LNG dual-fueled vehicle carrier,LNG carrier,,"Imabari Shipbuilding Co.,Ltd./Tadotsu Shipyard Co., Ltd.",,2024,199.93,38,22.85,,,77695,18439,18,,,,,18.0kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row
 e7861be623,WAN HAI 373,"3,055TEU containership",Container ship,Container Ship,Japan Marine United Corporation,,2024,203.5,34.8,16.6,11.5,unknown,30676,37160,21.6,,,,,21.6kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row
 3aca5c806c,TAI STEADINESS,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",11082,2024,199.95,32.26,19.28,13.542,scantling,36090,64589,14.5,,,,,14.50kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row
-c179308cab,MADRE ANTONIA,Refrigerated cargo ship,General cargo,Cargo vessel,,N-0126,2024,,12.4,8.1,,,2157,1438,12.5,,,,,12.5kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;GT/DWT_atypical_for_class
-c2c5a4effd,STELLA,"5,000m³-type LPG carrier",Gas carrier,,,1622,2024,,17.6,,,,4800,4600,13.5,,,,,13.5kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing;ambiguous_third_dimension
+c179308cab,MADRE ANTONIA,Refrigerated cargo ship,General cargo,Cargo vessel,,N-0126,2024,75.2,12.4,8.1,,,2157,1438,12.5,,,,,12.5kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;manual_override;GT/DWT_atypical_for_class
+c2c5a4effd,STELLA,"5,000m³-type LPG carrier",Gas carrier,,,1622,2024,99.9,17.6,8,,,4800,4600,13.5,,,,,13.5kt,SEA-Japan-No.-427-3.pdf,validate,realigned_row;loa_missing;ambiguous_third_dimension;manual_override
 2605996cf0,MAERSK EL ALTO,Containership,Container ship,Container Ship,Maersk,"September 26, 2024",,335,51,27.1,16,unknown,152237,127832,22,,,,12800,DNV,SEA-Japan-No.-429.pdf,fit,realigned_row
 4ca003a9f4,KEN CITRUS,Bulk carrier,Bulk carrier,Bulk carrier,,"January 17, 2025",,182.93,31,15,,,40087,25253,14,,,,,ClassNK,SEA-Japan-No.-429.pdf,fit,realigned_row;GT/DWT_atypical_for_class
-6f1ac770f7,INTERASIA TRANSFORM,Containership,Container ship,Container Ship,Interasia Lines Singapore Pte. Ltd.,"October 3, 2024",,203.5,34.8,16.6,11.5,unknown,30676,371600,21.5,,,,3055,DNV,SEA-Japan-No.-429.pdf,fit,realigned_row;DWT_coefficient_too_high;GT/DWT_atypical_for_class
+6f1ac770f7,INTERASIA TRANSFORM,Containership,Container ship,Container Ship,Interasia Lines Singapore Pte. Ltd.,"October 3, 2024",,203.5,34.8,16.6,11.5,unknown,30676,37160,21.5,,,,3055,DNV,SEA-Japan-No.-429.pdf,fit,realigned_row;manual_override
 ac20d76af6,FRANBO BRAVO,"40,000DWT-type bulk carrier",Bulk carrier,Bulk carrier,,"September 27, 2024",,182.94,31.6,14.8,10.37,unknown,24496,40099,13.6,,,,,ClassNK,SEA-Japan-No.-429.pdf,fit,realigned_row
 e80e6ab7f3,FEDERAL NEW YORK,Bulk carrier,Bulk carrier,Bulk carrier,Federal Trident Ltd.,"October 22, 2024",,196.48,23.762,14.85,,,21043,34763,14.15,,,,,DNV,SEA-Japan-No.-429.pdf,fit,realigned_row
 1785ec033a,C.S. COSMOS,Bulk carrier,Bulk carrier,Bulk carrier,"Caribstar Shipping, S.A.","November 19, 2024",,174,32,14.8,,,25200,40000,13.7,,,,,ClassNK,SEA-Japan-No.-429.pdf,fit,realigned_row;approx_tonnage
@@ -223,7 +223,7 @@ dc329ea08c,CALYPSO,Crude oil carrier,Tanker,Tanker,"Sumitomo Heavy Industries Ma
 e103cf8e44,ABILITY,Bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Dockyard Co., Ltd.",Sun Advance Shiping S.A.,2021,196.5,32.26,19.4,,,36757,64523,14,,,,,,sea-japan-no409.pdf,validate,
 ea9d3097ac,MORNING HOPE,LPG carrier,Gas carrier,,"Sasaki Shipbuilding Co., Ltd.","Trio Happiness, S.A.",2021,99.98,17.2,7.8,6.1,unknown,4301,4978,13.4,2750,1,178,,,sea-japan-no409.pdf,validate,
 5694a4febf,Puteri Intan Satu,membrane type LNG carrier,LNG carrier,,"Mitsubishi Heavy Industries, Ltd. (MHI)",,2002,276,43.4,25.5,,,,,19.5,26800,1,89,,"137,489m3",Sea295.pdf,fit,realigned_row;third_dimension_by_ratio;approx_LOA_m;ambiguous_tonnage
-f52ac48277,Tempera,Aframax tanker (Double Acting Tanker),Tanker,Tanker,"SHI Yokosuka Shipyard (Sumitomo Heavy Industries, Ltd.)",Fortum Oil & Gas OY of Finland,,252,44,22.5,14.5,design,64200,106000,15.4,16000,1,,,,Sea295.pdf,fit,realigned_row;approx_LOA_m;approx_tonnage
+f52ac48277,Tempera,Aframax tanker (Double Acting Tanker),Tanker,Tanker,"SHI Yokosuka Shipyard (Sumitomo Heavy Industries, Ltd.)",Fortum Oil & Gas OY of Finland,2002,252,44,22.5,14.5,design,64200,106000,15.4,16000,1,,,,Sea295.pdf,fit,approx_LOA_m;approx_tonnage
 d1ab05749b,Eishu,caprolactam carrier,Tanker,Tanker,"Shin Kurushima Dockyard Co., Ltd. (SKDY)",Procyon Shipholding S. A.,2002,79.97,13.2,6.2,4.3,unknown,1865,1866.14,12.8,,,,,,Sea295.pdf,fit,GT/DWT_atypical_for_class
 a4a3a15dcd,Front Stratus,VLCC,Tanker,Tanker,Hitachi Zosen Corop.,Front Stratus Inc.,2002,329.99,60,29.7,21.5,unknown,156916,299157,16,,,,,,Sea295.pdf,fit,
 a78f230494,Pegasus Island,Coal carrier,Bulk carrier,Bulk carrier,"Mitsui Engineering & Shipbuilding Co., Ltd.",Friend Shine Shipping S. A.,2002,229,36.5,18.5,12.8,unknown,43321,77830,14.5,,,,,"93,011.4m3",Sea295.pdf,fit,
@@ -297,10 +297,8 @@ a8ecc826e2,Gas Capricorn,LPG carrier,Gas carrier,,"Mitsubishi Heavy Industries, 
 e04f4f65c8,Energy Frontier,LNG carrier,LNG carrier,,Kawasaki Shipbuilding Corporation,"Tokyo LNG Tanker Co., Ltd.",2003,289.5,49,27,11.404,unknown,119381,71642,19.5,26900,1,80,,"145,385m3",Sea301.pdf,fit,
 7372064a9c,Sapphire Princess,Large Cruise Ship,Passenger / cruise,Cruise Ship,"Mitsubishi Heavy Industries, Ltd.",Princess Cruises,2004,290,41.5,,,,116000,,,,,,,"1,339 private cabins; 3,078 persons",Sea305.pdf,fit,approx_tonnage
 05aad184f2,NYK PHOENIX,"6,586TEU Type Container Carrier",Container ship,Container Ship,"Imabari Shipbuilding Co., Ltd.",Japanese owner,2003,299.95,40,24,14,unknown,76199,80270,25,64200,1,100,6586,"6,586TEU",Sea301.pdf,fit,
-25c711c18c,Urashima,Autonomous Underwater Vehicle (AUV),Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd.",JAMSTEC,,10,,,,,,10,4,4,1,,,,Sea301.pdf,fit,approx_LOA_m;approx_tonnage;L_out_of_range;speed_out_of_range
 7acc71020b,Selene Trader,VLCC,Tanker,Tanker,"Mitsui Engineering & Shipbuilding Co., Ltd.",Regulus Lines S. A.,2003,333,60,29.65,20.879,unknown,159912,299991,,27160,1,76,,"352,606m3",Sea301.pdf,fit,
 28f2de64ea,Musashi Maru,Roll-on/roll-off cargoship,Car carrier / Ro-Ro,,"Shin Kurushima Dockyard Co., Ltd.","Kyushu Kyuko Ferry Co., Ltd.",2003,166.03,27,22.5,7.017,unknown,13927,6389,23,16920,1,148,,"160 units (chassis), 120 cars",Sea301.pdf,fit,
-2111be4967,r2D4,autonomous underwater vehicle (AUV),Car carrier / Ro-Ro,,"Mitsui Engineering and Shipbuilding Co., Ltd.",University of Tokyo,2003,4.4,0.81,1.08,,,,1.506,3,,,,,,Sea301.pdf,fit,L_out_of_range;B_out_of_range;L/D_out_of_range;speed_out_of_range
 8f8cb025e5,Eneos Breeze,VLCC,Tanker,Tanker,IHI Marine United Inc.,"Liberian Jerboa Transport, Inc.",2003,333,60,29,20.529,unknown,159909,301013,16,27160,1,74,,,Sea301.pdf,fit,
 4a9fd09ffc,Berge Nice,LPG carrier,Gas carrier,,Kawasaki Shipbuilding Corporation,Bergesen Dy Shipping AS,2003,204.915,32.2,20.2,12,unknown,35000,44639,16.55,,,,,"59,343m3",Sea301.pdf,fit,
 85d35fc696,PAOLA I,Tanker,Tanker,Tanker,"Namura Shipbuilding Co., Ltd.",Augustea Ship Management S. R. L.,2003,241.03,42,21.2,14.923,unknown,58477,105817,14.88,,,,,,Sea301.pdf,fit,
@@ -412,7 +410,7 @@ afacb53c37,Cape Heron,bulk carrier (Dunkerquemax Capesize bulker),Bulk carrier,B
 fd4c93d270,Esteem Splendour,crude oil tanker (Aframax tanker),Tanker,Tanker,"Ariake Shipyard, Universal Shipbuilding Corp. (USC)","Lepta Shipping Co., Ltd",2005,243,42,20.7,14.73,unknown,56300,105930,,14000,1,103,,,Sea310.pdf,fit,
 2935831f28,Loch Alyn,Panamax bulk carrier,Bulk carrier,Bulk carrier,"Mizushima Works and Shipyard, Sanoyas Hishino Meisho Corp.","Orient Hakusan Shipping, S.A.",,225,32.26,19.3,13.994,unknown,38877,75744,14.5,,,,,"Cargo hold capacity: 89,201m3 (grain)",Sea310.pdf,fit,
 9413ee0ee7,Lodestar Princess,Bulk carrier,Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",Global Dream S. A.,2005,,29.4,13.7,9.56,unknown,19789,31901,14.4,,,,,,Sea310.pdf,fit,
-f6961add3b,Elegant Star,Bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Green Spanker Shipping S. A.,,288.97,279,45,17.955,unknown,89587,177216,17.03,,,,,,Sea310.pdf,fit,B_out_of_range;L/B_out_of_range;B/T_out_of_range
+f6961add3b,Elegant Star,Bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Green Spanker Shipping S. A.,,288.97,45,24.4,17.955,unknown,89587,177216,17.03,,,,,,Sea310.pdf,fit,manual_override
 3b10c4477d,Ginga Cougar,Chemical tanker,Tanker,Tanker,"Shin Kurushima Dockyard Co., Ltd.",Panther Navigation Inc.,2005,159.98,26.8,14.2,9.876,unknown,16232,25435,15.5,,,,,,Sea310.pdf,fit,
 28b9e66c28,Federal Nakagawa,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.","Michina Marina, S. A.",2005,199.99,23.76,14.85,10.73,unknown,20661,36489,14.5,,,,,,Sea310.pdf,fit,
 3498d0e994,Rudy,Product tanker,Tanker,Tanker,"Onomichi Dockyard Co. , Ltd.","Wah Kwong Shanghai Development Co., Ltd.",2005,182.5,32.2,18.1,12.617,unknown,26924,47278,15,,,,,"Cargo tank capacity: 53,704m3",Sea310.pdf,fit,
@@ -501,7 +499,6 @@ a56ed37444,SHIGA,Capesize bulker,Bulk carrier,Bulk carrier,"Namura Shipbuilding 
 3d1730e990,YASA UNITY,Bulk carrier,Bulk carrier,Bulk carrier,Sanoyas Hishino Meisho Corp.,Tiffany Navigation S. A.,2006,225,32.26,19.3,13.995,unknown,38895,75580,14.5,8973.1,1,,,"89,201m3 (grain)",Sea317.pdf,fit,
 84740e30bf,DUNCAN BAY,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd./Shimanami Shipyard Co., Ltd.",Kowa Shipping S. A.,2006,169.26,27.2,13.6,9.761,unknown,16951,28414,15.9,5850,1,129,,,Sea317.pdf,fit,
 35008e7e36,DREAM ANGEL,PCC,Car carrier / Ro-Ro,,"Shin Kurushima Dockyard Co., Ltd.",Dynamic Driving Marine S. A.,2006,186.03,28.2,,8.524,unknown,41662,15089,19.2,,,,,,Sea317.pdf,fit,realigned_row;third_dimension_by_ratio
-7f7b1b2411,KOHYOHSAN,Capesize bulk carrier,Bulk carrier,Bulk carrier,Universal Shipbuilding Corporation,"Mitsui O.S.K. Lines, Ltd.",,,,,,,2001,172000,,,,,,,Sea318.pdf,fit,realigned_row;GT/DWT_atypical_for_class
 7cb5f11a9f,HOKUREN MARU,roll-on/roll-off cargo carrier,Car carrier / Ro-Ro,,"Imabari Shipbuilding Co., Ltd.",Japanese domestic owner,,173.3,26.6,21.75,7.14,unknown,13950,6597,24,17840,1,123,,"135 units (12m chassis), 64 cars, 12 passengers",Sea318.pdf,fit,
 5e5aaa6f86,GAIA CELERIS,ore carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Seaside View Maritima S. A.,2006,319.58,54,24.3,18.1,unknown,113925,229045,17.2,22432,1,76,,,Sea318.pdf,fit,
 a6b255e7ae,MIMOSA AFRICANA,chip carrier,Bulk carrier,Bulk carrier,Sanoyas Hishino Meisho Corporation,CYGNET BULK CARRIER S. A.,2006,203.5,37.2,21.6,10.518,unknown,45011,52001,,9120.2,1,,,"111,471m3 (grain)",Sea318.pdf,fit,GT/DWT_atypical_for_class
@@ -515,7 +512,7 @@ be900be638,IBRI LNG,LNG carrier,LNG carrier,,"Mitsubishi Heavy Industries, Ltd."
 eb73e62ed4,POS LEADER,Bulk carrier,Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",White Orchid Marine S. A.,2006,,29.4,13.7,9.56,unknown,19796,31907,14.4,,,,,,Sea318.pdf,fit,
 41ae8777d6,DANANN ISLAND,Bulk carrier,Bulk carrier,Bulk carrier,Sanoyas Hishino Meisho Corp.,"Kotobuki Shipping Corporation, S. A.",2006,225,32.26,19.3,13.995,unknown,38891,75637,14.5,8973.1,1,,,"89,201m3",Sea318.pdf,fit,
 2c3a1c8279,UMIAK I,Ice-breaking bulk carrier,Bulk carrier,Bulk carrier,Universal Shipbuilding Corporation,Fednav Limited,2006,188.8,26.6,15.7,11.751,unknown,22462,31992,13.5,,,,,,Sea318.pdf,fit,
-83416d6077,ORANGE HOPE,high-speed ferry,Ferry / RoPax,,"Imabari Shipbuilding Co., Ltd.","Shikoku Kaihatsu Ferry Co., Ltd. and Japan Railway Construction, Transportation and Technology Agency",,168,27.5,18.15,6.5,unknown,15732,5144,22.2,18550,1,,,218 passengers; 154 trucks (12m long chassis); 205 trucks (9m long chassis),Sea319.pdf,fit,realigned_row
+83416d6077,ORANGE HOPE,high-speed ferry,Ferry / RoPax,,"Imabari Shipbuilding Co., Ltd.","Shikoku Kaihatsu Ferry Co., Ltd. and Japan Railway Construction, Transportation and Technology Agency",2005,168,27.5,18.15,6.5,unknown,15732,5144,22.2,18550,1,,,218 passengers; 154 trucks (12m long chassis); 205 trucks (9m long chassis),Sea319.pdf,fit,
 843238acc0,ORANGE 8,ferry,Ferry / RoPax,,,,,150,25.6,13.21,5.516,unknown,,2952,,19860,1,,,139 trucks (9m long chassis),Sea319.pdf,fit,
 89fc610e67,ARCTIC VOYAGER,LNG carrier,LNG carrier,,Kawasaki Shipbuilding Corporation,Lloyds TSB Equipment Leasing (No. 1) Limited,2006,289.5,48.4,26.5,11.9,unknown,118571,75434,19.3,27000,1,81,,"140,618m3 (at -163°C, 98.5%)",Sea319.pdf,fit,
 d866361897,POSITIVE LEADER,vehicle carrier,Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd. (Shimonoseki Shipyard)",Oceanic Trader S. A.,2006,180,30,30.94,8.2,unknown,43810,10862,19.9,11560,1,127,,"3,930 passenger cars (RT type); Complement: 24",Sea319.pdf,fit,L/D_out_of_range
@@ -556,7 +553,7 @@ f7fb2cd0fc,SEA SENATOR,Tanker,Tanker,Tanker,"Namura Shipbuilding Co., Ltd.","Val
 b0131e47d9,YAMATOGAWA,VLCC,Tanker,Tanker,Kawasaki Shipbuilding Corporation,KAW1572 SHIPPING S. A.,2006,333,60,29,20.417,design,160231,302488,15.58,27160,1,76,,"351,643m3",Sea322.pdf,fit,
 0b3199cea9,GENMAR KARA G,Suezmax tanker,Tanker,Tanker,Universal Shipbuilding Corporation,GMR NEWBUILDING 2 LLC,2007,274,48,22.4,16,unknown,79235,150296,16.2,,,,,"170,108m3",Sea322.pdf,fit,
 b6b4505377,SIERRA NEVADA HIGHWAY,PCC (vehicle carrier),Car carrier / Ro-Ro,,Naikai Zosen Corporation,River Spring Corporation of Panama,2007,183,30.2,28.8,7.7,unknown,44364,12851,20,11620,1,,,"4,300 units in terms of passenger cars",Sea322.pdf,fit,
-1f2641e76b,NiigataMax,chemical tanker,Tanker,Tanker,"Niigata Shipbuilding & Repair, Inc.",,,119.2,20,11.65,,,7350,11500,13.5,4550,1,,,,Sea322.pdf,fit,realigned_row;approx_tonnage
+1f2641e76b,NiigataMax,chemical tanker,Tanker,Tanker,"Niigata Shipbuilding & Repair, Inc.",,2008,119.2,20,11.65,,,7350,11500,13.5,4550,1,,,,Sea322.pdf,fit,approx_tonnage
 1c4347bf78,THERESE SELMER,bulk carrier,Bulk carrier,Bulk carrier,"Mitsui Engineering & Shipbuilding Co., Ltd.","Oskar Wehr KG GmbH & Co., Germany",,189.99,32.26,17.9,12.55,unknown,31222,55682,14.5,9480,1,127,,"over 70,000 m3",Sea322.pdf,fit,
 753a8f4f82,Shinei Maru,General cargo/oil tanker,Tanker,Tanker,"Sanuki Shipbuilding & Ironworks Co., Ltd.",Niijima Bussan Kabushiki Kaisha,2007,55,9.8,3.5,,,492,,11.9,1200,3,,,,Sea322.pdf,fit,
 0540f34dfd,KASHIMASAN,VLCC,Tanker,Tanker,"Mitsubishi Heavy Industries, Ltd.",Breeze Shipping Navigation S. A.,2007,333,60,29.1,20.5,unknown,159873,300579,15.5,27020,1,76,,,Sea322.pdf,fit,approx_LOA_m
@@ -576,7 +573,7 @@ fd1bc11eca,HUMEN BRIDGE,Container carrier,Container ship,Container Ship,IHI Mari
 99390f20c8,BAOSTEEL EVOLUTION,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd. (Saijyo Shipyard)",Ambitious Line S. A.,2007,299.94,50,24.5,18.083,unknown,104721,206331,15.1,18630,1,91,,,Sea323.pdf,fit,realigned_row
 6a2358a1aa,TAIGA,VLCC,Tanker,Tanker,"Mitsui Engineering & Shipbuilding Co., Ltd.",Fortis Maritime S. A.,2007,333,60,28.8,20.943,unknown,160109,311141,,27160,1,76,,"354,751.2m3",Sea323.pdf,fit,realigned_row
 70bd311279,NICOLE,Bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd. (Imari Shipyard & Works)",Transmed Shipping Ltd.,2007,224.99,32.26,19.5,14.078,unknown,40690,77096,14.5,,,,,,Sea323.pdf,fit,realigned_row
-e1e4422e7a,LOYAL UNION,Bulk carrier,Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",Sarpen Maritime Co.,2007,,32,16.55,11.655,unknown,27729,48549,14,,,,,,Sea323.pdf,fit,realigned_row;loa_missing
+e1e4422e7a,LOYAL UNION,Bulk carrier,Bulk carrier,Bulk carrier,"The Hakodate Dock Co., Ltd.",Sarpen Maritime Co.,2007,182.4,32,16.55,11.655,unknown,27729,48549,14,,,,,,Sea323.pdf,fit,realigned_row;loa_missing;manual_override
 395af36f84,NORDBAY,Oil tanker,Tanker,Tanker,Universal Shipbuilding Corporation (Tsu Shipyard),Nordbay Navigation Company Limited,2007,249,44,20.8,13.71,unknown,62241,58,15.3,14000,1,103,,"131,340m3",Sea323.pdf,fit,realigned_row;GT/DWT_atypical_for_class
 f76fcb0df0,SERI BAKTI,membrane type LNG carrier,LNG carrier,,"Mitsubishi Heavy Industries, Ltd. (MHI) / Nagasaki Shipyard & Machinery Works",MISC,2007,289.8,46.5,25.8,11.25,unknown,105335,,19,24500,1,,,"152,944m3",Sea324.pdf,fit,approx_LOA_m
 950dbdba74,MINERAL NIPPON,Bulk Carrier,Bulk carrier,Bulk carrier,Universal Shipbuilding Corporation / Tsu Shipyard,"Southern Route Maritime, S.A.",2007,299.95,50,24.1,17.88,unknown,101933,203275,16.25,,,,,"217,968m3",Sea324.pdf,fit,
@@ -655,7 +652,6 @@ ced3920c91,UNICORN OCEAN,Panamax bulk carrier,Bulk carrier,Bulk carrier,Sanoyas 
 c903d769a3,PROMETHEUS LEADER,PCC,Car carrier / Ro-Ro,,"Shin Kurushima Dockyard Co., Ltd.",Bacchus Shipping Pte. Ltd.,2008,190.03,28.2,,9.326,unknown,41886,14382,19.5,11335,1,,,,Sea329.pdf,fit,realigned_row;third_dimension_by_ratio
 9411ef7206,BRASIL MARU,Bulk carrier,Bulk carrier,Bulk carrier,"Mitsui Engineering & Shipbuilding Co., Ltd.",Tamou Line,,,60,28.13,,,160774,320000,15,23640,1,,,"Iron ore (327,180MT)",Sea330.pdf,fit,
 d641bd6904,ALTO ACRUX,Moss type LNG carrier,LNG carrier,,"Mitsubishi Heavy Industries, Ltd. (MHI)",Kanto Leasing Limited,2008,288,49,26.8,11.27,unknown,122361,,19.5,22930,1,76,,"147,798m3",Sea330.pdf,fit,
-ad843d4838,SHIGE MARU,Coastal tanker,Tanker,Tanker,"Niigata Shipbuilding & Repair, Inc.","Eiyu Kaiun Co., Ltd.",,,16,8.5,6.4,unknown,4289,4999,14.9,3300,2,,,"6,127m3",Sea330.pdf,fit,GT/DWT_atypical_for_class
 c709aef610,CYPRIA SOYA,Passenger/car ferry,Ferry / RoPax,,Naikai Zosen Corporation,Heart Land Ferry Company,2008,95.7,15,9.95,4,unknown,3555,623,19.6,2350,1,215,,21 units 8t trucks; 55 units passenger cars; 600 people,Sea330.pdf,fit,
 e52a9383c3,OCEAN COMET,Capesize bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Fair Wind Navigation S.A.,2008,288.97,45,24.4,17.93,unknown,89603,176943,14.6,16860,1,91,,,Sea330.pdf,fit,
 0a9f3fdcd8,MOL PRESENCE,Container carrier,Container ship,Container Ship,"Koyo Dockyard Co., Ltd.",Southern Route Maritime S.A.,2008,293.18,40,24.3,14,unknown,71776,72912,26,62920,1,94,6350,"6,350TEU",Sea330.pdf,fit,
@@ -695,7 +691,7 @@ f7cb69ae83,OCEAN COBALT,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuil
 3ba25f4b5d,TOYOFUJI MARU NO. 2,Car and general cargo carrier,General cargo,Cargo vessel,"Mitsubishi Heavy Industries, Ltd.","Toyofuji Shipping Co., Ltd.",2008,165,27.6,24.15,6.2,unknown,12801,6090,21,,,,,"2,000 cars",Sea332.pdf,fit,GT/DWT_atypical_for_class
 39c21c7aa6,LR2 PIONEER,Crude and petroleum product carrier,Tanker,Tanker,"Sasebo Heavy Industries Co., Ltd.",Heroic Aries Inc.,2008,243.8,42,21.5,15.62,scantling,59172,115273,15.1,13560,1,105,,,Sea332.pdf,fit,
 e984b7af5d,SAGA PIONEER,General Cargo Carrier,General cargo,Cargo vessel,"Oshima Shipbuilding Co., Ltd.",Saga Shipholding (Norway) AS,2008,199.2,30.5,16.4,11.8,unknown,29758,46559,14.9,9510,1,129,,,Sea332.pdf,fit,
-58ceeb2015,IS BRASTAR,iron ore carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd.",,,339.9,60,28.8,21.65,unknown,167500,335000,15.15,29260,1,78,,five cargo holds and nine single panel hatches,Sea333.pdf,fit,realigned_row
+58ceeb2015,IS BRASTAR,iron ore carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd.",,2014,339.9,60,28.8,21.65,unknown,167500,335000,15.15,29260,1,78,,five cargo holds and nine single panel hatches,Sea333.pdf,fit,
 f96686243d,SERI BALHAF,No. 96 Membrane type LNG carrier,LNG carrier,,"Mitsubishi Heavy Industries, Ltd.",MISC Berhad,2009,294.6,46.5,25.8,11.15,unknown,107633,,19.5,24750,1,78,,"157,720m3",Sea333.pdf,fit,
 f5065fe966,QUEEN CORAL PLUS,passenger/car ferry,Ferry / RoPax,,"Kanda Shipbuilding Co., Ltd.","JRTT/Marix Line Co., Ltd.",2008,143.3,21.6,7.65,6.25,unknown,5910,3537,21.4,6619.5,1,,,"470 passengers, 26 12m trucks, 44 passenger cars, and 246 containers",Sea333.pdf,fit,
 d6cff15888,JUPITER LEADER,car carrier,Car carrier / Ro-Ro,,Naikai Zosen Corporation,River Spring Corporation,2008,170,30.2,28.8,7.7,unknown,44412,12889,20,11620,1,,,"4,300 units (passenger cars)",Sea333.pdf,fit,L/D_out_of_range
@@ -736,7 +732,7 @@ a79799f4a5,JOSE PROGRESS,Chemical tanker,Tanker,Tanker,"Shin Kurushima Dockyard 
 c7fbeb532e,K. ASTER,Bulk carrier,Bulk carrier,Bulk carrier,Universal Shipbuilding Corporation,Aster Maritime S.A.,2009,299.7,50,25,18.2,unknown,106367,207942,14.6,,,,,,Sea335.pdf,fit,
 a84e1bc88b,FLORENCE LILY,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",MI-DAS LINE S.A.,2009,224.86,32.26,20.05,14.4,unknown,42647,82356,14.5,9378,1,88,,,Sea335.pdf,fit,
 7a4cb02449,CORELLA ARROW,open hatch general cargo carrier,General cargo,Cargo vessel,"Oshima Shipbuilding Co., Ltd.",Glory Ocean Shipping S.A.,2009,225,32.26,20.56,14.388,unknown,44684,72863,15.5,12577,1,,,,Sea336.pdf,fit,
-e9ec5b6bdf,megumi,Trimaran passenger ferry of light metal hull,Ferry / RoPax,,Kabushiki Kaisha Mokubei Zosensho,"Biwako Kisen Steamship Co., Ltd.",,34.2,8,2.2,0.715,unknown,122,,18.75,846,2,,,200 people,Sea336.pdf,fit,realigned_row;B/T_out_of_range
+e9ec5b6bdf,megumi,Trimaran passenger ferry of light metal hull,Ferry / RoPax,,Kabushiki Kaisha Mokubei Zosensho,"Biwako Kisen Steamship Co., Ltd.",2008,34.2,8,2.2,0.715,unknown,122,,18.75,846,2,,,200 people,Sea336.pdf,fit,B/T_out_of_range
 5bf6124e1d,FERRY AKEBONO,Passenger/car ferry,Ferry / RoPax,,"Mitsubishi Heavy Industries, Ltd.","Japan Railway Construction, Transport and Technology Agency and A-Line Ferry Co., Ltd.",,135,24,14.5,6.25,unknown,8083,,21,12140,2,,311,"Passengers: 682 people, Containers: 311TEUs, Vehicles: 50 trucks, 76 passenger cars",Sea336.pdf,fit,
 482423eb4f,TRINITY ARROW,LNG tanker,LNG carrier,,"Koyo Dockyard Co., Ltd.","Cypress Maritime (Panama), S.A., Luster Maritime S.A., Los Halillos Shipping Co., S.A.",,76,44.7,26,12.05,unknown,101080,,20.15,29420,1,,,"154,982m³ (LNG)",Sea336.pdf,fit,L/B_out_of_range;L/D_out_of_range
 2b3ab8efe0,TOSCANA,PCTC,Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd.",Wilhelmsen Lines Shipowning AS,2009,192,32.26,36.02,,,61328,,20,13240,1,105,,"6,556 cars (RT-43)",Sea336.pdf,fit,L/D_out_of_range
@@ -990,8 +986,8 @@ e107a5bb39,FEDERAL SATSUKI,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbu
 37874c4bf6,K. VICTORY,Bulk carrier,Bulk carrier,Bulk carrier,"Sasebo Heavy Industries Co., Ltd.",DAVID A Shipholding S.A.,2012,292,45,24.7,18.15,unknown,93383,181500,15.3,,,,,,Sea354.pdf,fit,
 4673527cc8,TRANS OCEANIC,Bulk carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipbuilding Co., Ltd.",,2012,189.99,32.26,18,12.8,unknown,32309,58168,14.5,,,,,,Sea354.pdf,fit,
 88ee3b02a5,EMERALD ACE,Vehicle carrier,Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd. (MHI)","Mitsui O.S.K. Lines, Ltd. (MOL)",2012,199.99,32.26,34.52,,,,,20.65,,,,,about 20.65kt,Sea355.pdf,fit,realigned_row;third_dimension_by_ratio;ambiguous_tonnage;L/D_out_of_range
-6bd6c3c7e3,HOUSTON BRIDGE,Container vessel,Container ship,Container Ship,IHI Marine United Inc.,,,,,,,,3288,97000,,51480,1,94,8600,,Sea355.pdf,fit,realigned_row;GT/DWT_atypical_for_class
-6b26d38855,FURNESS VICTORIA,Bulk carrier,Bulk carrier,Bulk carrier,"Kawasaki Heavy Industries, Ltd.",East Blue Line S.A.,,,,,,,1702,58648,14.45,8630,1,116,,about 14.45kt,Sea355.pdf,fit,realigned_row;GT/DWT_atypical_for_class
+6bd6c3c7e3,HOUSTON BRIDGE,Container vessel,Container ship,Container Ship,IHI Marine United Inc.,,,334.55,45.6,24.4,,,3288,97000,,51480,1,94,8600,,Sea355.pdf,fit,realigned_row;manual_override;GT/DWT_atypical_for_class
+6b26d38855,FURNESS VICTORIA,Bulk carrier,Bulk carrier,Bulk carrier,"Kawasaki Heavy Industries, Ltd.",East Blue Line S.A.,,197,32.26,18.1,12.65,,1702,58648,14.45,8630,1,116,,about 14.45kt,Sea355.pdf,fit,realigned_row;manual_override;GT/DWT_atypical_for_class
 5d41d88077,CAPE LILY,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd.",Peony Shipholding S.A.,,,,,,,,181303,14,18600,1,91,,14.0kt,Sea355.pdf,fit,realigned_row
 5a0a2c2e45,FRONTIER WAVE,Cape size bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Nippon Yusen Kabushiki Kaisha,,,,,,,,174707,,,,,,,Sea355.pdf,fit,realigned_row
 db9a47c71e,AZALEA SKY,Panamax bulk carrier,Bulk carrier,Bulk carrier,Universal Shipbuilding Corporation,Diamond Camellia S.A.,,,,,,,,80000,14.6,,,,,14.6kt,Sea355.pdf,fit,realigned_row
@@ -1042,7 +1038,6 @@ c260884b19,NBA REMBRANDT,Bulk carrier,Bulk carrier,Bulk carrier,,10701,2012,254.
 d312263e7f,FELICIA K,Open hatch cargo ship,General cargo,Cargo vessel,,533,2012,181.1,28.4,14.25,10.034,unknown,,,14.15,,,,,14.15kt,Sea358.pdf,fit,realigned_row;ambiguous_tonnage
 12e6840be3,EISHO,Bulk carrier,Bulk carrier,Bulk carrier,,S808,2012,225,32.26,19.8,,,,74930,14.5,,,,,14.5kt,Sea358.pdf,fit,realigned_row;third_dimension_by_ratio;tonnage_by_ratio
 643dd6b047,DRAGON SKY,Wood chip carrier,Bulk carrier,Bulk carrier,,Sea359.pdf,,,,,,,,63415,,9480,1,,,Panama,,fit,realigned_row
-651e55f9ae,EMERALD ACE,Large Cargoship,General cargo,Cargo vessel,,,,,,,,,60154,1793,,,,,,,Sea360.pdf,fit,realigned_row;GT/DWT_atypical_for_class
 06cbd468e7,SHINSHIN MARU,Small cargoship,General cargo,Cargo vessel,,,,,,,,,749,1793,,,,,,,Sea360.pdf,fit,realigned_row
 f3f24fb7fd,IS TRI-STAR,Bulker,Bulk carrier,Bulk carrier,,,,179.5,28.4,14.25,,,,33000,,,,,,,Sea360.pdf,fit,realigned_row
 2258fde03a,SEAGULL WIND,Panamax bulk carrier,Bulk carrier,Bulk carrier,Sangria Pioneer Four S.A.,1330,2013,229,32.24,20.2,14.648,scantling,43656,82908,14.5,9750,1,,,About 14.5kt,Sea360.pdf,fit,realigned_row
@@ -1077,7 +1072,7 @@ b756b6c978,ANSAC ENTERPRISE,Open hatch cargo ship,General cargo,Cargo vessel,"Ka
 7fdaca7ad2,ANDES QUEEN,Bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Dockyard Co., Ltd.",Aries Marine S.A.,,182.93,32.26,17.6,12.42,unknown,30220,52330,14.5,,,,,,Sea363.pdf,fit,
 d19b5a4a2a,ROBIN WIND,Bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Toyohashi Shipbuilding Co., Ltd.",Cassiopeia Marine S.A.,,224.98,32.26,19.85,14.38,unknown,41960,78230,14.5,,,,,,Sea363.pdf,fit,
 cedc340b5e,UNITED WORLD,Bulk carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipbuilding Co., Ltd.",United Ocean S.A.,,228.99,32.26,20.05,14.429,unknown,43005,82026,14.5,,,,,,Sea363.pdf,fit,
-6be095513f,NUNAVIK,High ice class bulk carrier,Bulk carrier,Bulk carrier,JMU Tsu Shipyard,Federal Hudson Ltd.,2014,,,,,,22622,24997,,,,,,,Sea364.pdf,fit,GT/DWT_atypical_for_class
+6be095513f,NUNAVIK,High ice class bulk carrier,Bulk carrier,Bulk carrier,JMU Tsu Shipyard,Federal Hudson Ltd.,2014,188.8,26.6,15.7,,,22622,24997,13.5,,,,,,Sea364.pdf,fit,manual_override;GT/DWT_atypical_for_class
 002543ed3a,EUROPA BAY,Bulk carrier,Bulk carrier,Bulk carrier,"Kawasaki Heavy Industries, Ltd. Sakaide Works","""K"" Line Bulk Shipping (UK) Limited",,197,32.26,18.1,12.65,unknown,33126,58606,14.5,8683,1,,,"73,614m³",Sea364.pdf,fit,
 520721da60,SISKIN ARROW,Open hatch general cargo carrier,General cargo,Cargo vessel,"Mitsui Engineering & Shipbuilding Co., Ltd. Chiba Works","Misuga S.A., Panama",2014,210,36,20.2,,,46295,72927,14.5,9450,1,,,"86,600m³",Sea364.pdf,fit,
 a3ab1a9ab3,HIGH SPEED SHIP KOSHIKISHIMA,Aluminum-monohull fast ferry,Ferry / RoPax,,Shimonoseki Shipyard & Machinery Works of MHI,"Japan Railway Construction, Transport and Technology Agency and Satsumasendai City",2014,45.7,7,3.15,1.3,unknown,,,26.7,1680,1,,,,Sea364.pdf,fit,
@@ -1153,14 +1148,14 @@ b5f62da1ff,ANGELIC ZEPHYR,Log & cargo ship,Bulk carrier,Bulk carrier,"Kanda Ship
 1fb5465ddd,ECO INVICTUS,LPG carrier,Gas carrier,,"Sasaki Shipbuilding Co., Ltd.",Kaizen Industries Ltd.,2014,99.98,17.2,7.8,6.1,unknown,4294,4923,13.4,,,,,,Sea369.pdf,fit,
 2e2171db63,IRON SOUTHERN CROSS,VLOC,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",,2015,329.95,57,25.1,18,unknown,132587,250993,,,,,,,Sea370.pdf,fit,realigned_row
 439861caaf,MACHERAS,G-Series Panamax bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation,,2015,229,32.26,20,14.45,unknown,43229,81000,14.5,,,,,14.5kt,Sea370.pdf,fit,realigned_row
-1612aacb0c,HIDAKA,"11,000GT-class roll-on/off cargo ship",Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd. and Kanda Shipbuilding Co., Ltd.",,2015,,27,23.27,6.8,unknown,11185,6300,23,14940,1,,,23.0kt,Sea370.pdf,fit,realigned_row;loa_missing
+1612aacb0c,HIDAKA,"11,000GT-class roll-on/off cargo ship",Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd. and Kanda Shipbuilding Co., Ltd.",,2015,179.9,27,23.27,6.8,unknown,11185,6300,23,14940,1,,,23.0kt,Sea370.pdf,fit,realigned_row;loa_missing;manual_override
 ec4774be5a,IZUMI,"35,000GT-class domestic RoPax ferry",Ferry / RoPax,,"Mitsubishi Heavy Industries, Ltd.",,2015,195,29.6,20.6,6.7,unknown,15897,,23.5,8700,1,,,23.5kt,Sea370.pdf,fit,realigned_row
 9c052ce3c6,AFRICAN ROOK,"37,700DWT general cargo ship",General cargo,Cargo vessel,Naikai Zosen Corporation,,2015,183,30.6,14.5,10,unknown,23750,37700,14.1,5690,1,,,14.1kt,Sea370.pdf,fit,realigned_row
 b2f85daec5,CIELO D' ITALIA,Handy Cape bulk carrier,Bulk carrier,Bulk carrier,Sanoyas Shipbuilding Corporation,1315,2015,245,43,21.6,15.626,unknown,63087,117438,14.5,11010,1,,,14.5kt,Sea370.pdf,fit,realigned_row
 0dbf41f09d,SBI SAMBA,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd.",,2015,228.95,35,19.9,,,45200,84867,14.5,,,,,14.5kt,Sea370.pdf,fit,realigned_row
 bb2afbfdb8,GOLDEN KATHRINE,Bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation,5004,2015,292,45,24.55,,,93200,182000,15.05,,,,,15.05kt,Sea370.pdf,fit,realigned_row
 c7b83f997a,CEMTEX HUNTER,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",10753,2014,228.41,36.5,19.89,12.028,unknown,46935,85066,14,,,,,14.00kt,Sea370.pdf,fit,realigned_row
-2f77f0536c,ALFA BALTICA,Tanker,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",1380,2015,,42,21.45,,,57312,106200,15,,,,,15.0kt,Sea370.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+2f77f0536c,ALFA BALTICA,Tanker,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",1380,2015,224.64,42,21.45,,,57312,106200,15,,,,,15.0kt,Sea370.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 9369b344e5,MTM PENANG,Chemical tanker,Tanker,Tanker,"Shin Kurushima Dockyard Co., Ltd.",5822,2015,143.02,24.6,13.2,10.1,unknown,13122,22413,14,,,,,14.0kt,Sea370.pdf,fit,realigned_row
 565ebfb7f4,BASIC CHALLENGER,Super box shaped bulker,Bulk carrier,Bulk carrier,"Saiki Heavy Industries Co., Ltd., Onomichi Dockyard Co., Ltd.",664,2014,177.8,28.6,15,10.85,unknown,22866,36936,14.7,,,,,14.7kt,Sea370.pdf,fit,realigned_row
 da916e4d48,BULK CASTOR,"66,000DWT type bulk carrier",Bulk carrier,Bulk carrier,"Mitsui Engineering & Shipbuilding Co., Ltd. (MES)",1891,2015,199.99,36,18.45,,,38227,66624,14.5,8470,1,,,14.5kt,Sea370.pdf,fit,realigned_row
@@ -1213,13 +1208,13 @@ c6b383f78d,IVS BOSCH HOEK,Bulk carrier,Bulk carrier,Bulk carrier,"Onomichi Docky
 ee535d3217,RMC RIGEL,Ore carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",,,,,,,,,250769,,,,,,"250,769 DWT",Sea361.pdf,fit,realigned_row
 c9cef5ab97,ASTOMOS VENUS,LPG carrier,Gas carrier,,"Mitsubishi Heavy Industries Shipbuilding Co., Ltd.",2315,2016,230,36.6,21.65,11.575,unknown,47963,,17,13000,1,,,17.0 kt,Sea376.pdf,fit,realigned_row
 66d05b7c21,CHEVRIER,Dunkirkmax bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation,,2016,292,45,24.55,18.18,unknown,93297,182625,15.05,,,,,15.05kt,Sea376.pdf,fit,realigned_row
-e2bec3313d,C.S. BRIGHT,woodchip carrier,Bulk carrier,Bulk carrier,Sanoyas Shipbuilding Corporation,1318,2016,,37,22.85,,,49718,63291,14.6,9480,1,,,about 14.6kt,Sea376.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+e2bec3313d,C.S. BRIGHT,woodchip carrier,Bulk carrier,Bulk carrier,Sanoyas Shipbuilding Corporation,1318,2016,209.99,37,22.85,,,49718,63291,14.6,9480,1,,,about 14.6kt,Sea376.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 8387a41701,BISHU MARU,LNG carrier,LNG carrier,,,"Kawasaki Kisen Kaisha, Ltd. (""K"" Line)",2017,293,48.9,27,12.2,unknown,127088,83752,,26800,1,70,,,Sea388.pdf,validate,realigned_row
 70fd7b3ec7,DIAMOND FAITH,Aframax tanker,Tanker,Tanker,"Namura Shipbuilding Co., Ltd.",,2016,249.97,44,21.2,14.8,unknown,63538,114737,14.45,,,,,about 14.45kt,Sea376.pdf,fit,realigned_row
 1a6b549ce9,SHIN SEKIYO,bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",,2016,235,43,18.55,13.044,unknown,50794,90781,14.3,10335,1,,,14.3kt,Sea376.pdf,fit,realigned_row
 2fa3a261c1,KIRANA SAPTA,oil product tanker,Tanker,Tanker,Naikai Zosen Corporation,,2016,160,27.9,11.2,7.13,unknown,13222,19000,13.5,4900,1,,,About 13.5kt,Sea376.pdf,fit,realigned_row
 8eb6be99ee,CORONA UTILITY,bulk carrier,Bulk carrier,Bulk carrier,,,2016,234.9,38,19.9,,,49721,88847,15,,,,,15.0kt,Sea376.pdf,fit,realigned_row
-d23f319236,STELLATA,Tanker,Tanker,Tanker,,,2016,,42,21.45,,,57997,109991,14.9,,,,,about 14.9kt,Sea376.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+d23f319236,STELLATA,Tanker,Tanker,Tanker,,,2016,234.34,42,21.45,,,57997,109991,14.9,,,,,about 14.9kt,Sea376.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 5e4cd1bd40,IVS TEMBE,Log/Cargo ship,Bulk carrier,Bulk carrier,,,2016,179.9,30,15,10.772,unknown,23224,37735,14,,,,,14.0kt,Sea376.pdf,fit,realigned_row
 7403dbf4e6,AFRICAN TURAC,Bulk carrier,Bulk carrier,Bulk carrier,,,2016,199.9,32.26,18.6,13,unknown,34806,60075,14.5,,,,,14.5kt,Sea376.pdf,fit,realigned_row
 3eacda9a89,HALCON TRADER,Oils/chemical tanker,Tanker,Tanker,,,2016,149.93,24.6,13.2,10.167,unknown,13061,22421,14,,,,,about 14.0kt,Sea376.pdf,fit,realigned_row
@@ -1232,7 +1227,7 @@ e3d64867d6,CIELO D'EUROPA,Handy Cape bulk carrier,Bulk carrier,Bulk carrier,Sano
 1f69d63551,TOYO MARU NO 3,Car carrier,Car carrier / Ro-Ro,,Naikai Zosen Corporation,,2016,125,20.6,,5.55,unknown,3990,2888,18,5220,1,,,18.0kt,Sea377.pdf,fit,realigned_row;third_dimension_by_ratio
 82c552e10b,AUDREY-TRACY,Bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",389,2016,179.96,30,14.05,9.8,unknown,21545,34874,14,,,,,about 14.0kt,Sea377.pdf,fit,realigned_row
 6ff51d0e96,ADA,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",10778,2016,228.99,32.26,20.01,14.486,unknown,43729,81841,14.3,,,,,14.30kt,Sea377.pdf,fit,realigned_row
-811bea62ca,PRIMERO,Tanker,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",1383,2016,,42,21.45,,,57312,106200,15,,,,,about 15.0kt,Sea377.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+811bea62ca,PRIMERO,Tanker,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",1383,2016,224.64,42,21.45,,,57312,106200,15,,,,,about 15.0kt,Sea377.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 b9caab92f6,AFRICAN SPOONBILL,Bulk carrier,Bulk carrier,Bulk carrier,"Onomichi Dockyard Co., Ltd.",707,2016,199.9,32.26,18.6,13,unknown,34806,60033,14.5,,,,,14.5kt,Sea377.pdf,fit,realigned_row
 2ce871b4ab,GLOBAL HIGHWAY,Car carrier,Car carrier / Ro-Ro,,"Shin Kurushima Dockyard Co., Ltd.",S-5875,2016,199.96,38,14.65,10.227,unknown,75036,20686,20,,,,,about 20.0kt,Sea377.pdf,fit,realigned_row
 f1eea6eb68,EPIC BORINQUEN,LPG carrier,Gas carrier,,"Sasaki Shipbuilding Co., Ltd.",691,2016,113.08,19,9.1,6.8,unknown,6220,7182,13.5,2750,1,,,13.5kt,Sea377.pdf,fit,realigned_row
@@ -1259,7 +1254,7 @@ db6ff474df,MG EARTH,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding
 9ff2c6d583,MARIA TOPIĆ,Bulk carrier,Bulk carrier,Bulk carrier,"Onomichi Dockyard Co., Ltd.",Sumitomo Corporation,2016,199.9,32.26,18.6,13,unknown,34905,60155,14.5,,,,,14.5kt,Sea379.pdf,fit,realigned_row
 7eb7845440,PLUMERIA CORAL,LPG carrier,Gas carrier,,"Sasaki Shipbuilding Co., Ltd.",Coral Canal S.A.,2016,99.98,17.2,7.8,6.1,unknown,4289,5016,13.4,,,,,13.40kt,Sea379.pdf,fit,realigned_row
 88620eaf25,BRISTOL TRADER,Chemical tanker,Tanker,Tanker,"Shin Kurushima Dockyard Co., Ltd.","Ratu Shipping Co., S.A.",2016,179.53,27.4,16.3,,,21151,35863,15,,,,,15.0kt,Sea379.pdf,fit,realigned_row
-e25610d5c7,ORANGE PHOENIX,Bulk carrier,Bulk carrier,Bulk carrier,"Saijyo Shipyard, Imabari Shipbuilding Co., Ltd.",KD36-HD50,2014,299.94,50,24.7,,,3000,206600,,,,,,299.94m,Sea380.pdf,fit,realigned_row;third_dimension_by_ratio;GT/DWT_atypical_for_class
+e25610d5c7,ORANGE PHOENIX,Bulk carrier,Bulk carrier,Bulk carrier,"Saijyo Shipyard, Imabari Shipbuilding Co., Ltd.",KD36-HD50,2014,299.94,50,24.7,,,,206600,,,,,,299.94m,Sea380.pdf,fit,realigned_row;third_dimension_by_ratio;manual_override
 4f4c0835d1,NYK EAGLE,mega container ship,Container ship,Container Ship,Japan Marine United Corporation (JMU),,2016,364.15,50.6,29.5,15.75,unknown,139335,144285,22.5,,,,14000,364.15m,Sea380.pdf,fit,realigned_row
 9b45e50f70,GLOBE ATLAS,LPG carrier,Gas carrier,,"Mitsubishi Heavy Industries Shipbuilding Co., Ltd. (MHISB)",,2016,230,36.6,21.65,,,,,16.6,13000,1,,,230.0m,Sea380.pdf,fit,realigned_row;ambiguous_tonnage
 f3833c3650,FUOU MARU,Roll-on/Roll-off cargoship,Car carrier / Ro-Ro,,Naikai Zosen Corporation,,2016,173.08,27,22.6,,,11413,,22.6,15930,1,,,173.08m,Sea380.pdf,fit,realigned_row
@@ -1303,7 +1298,7 @@ a7a1dd736a,ISUZU MARU,Bulk carrier,Bulk carrier,Bulk carrier,,10795,,249.98,43,1
 5e63588d8d,BENJAMIN CONFIDENCE,Bulk carrier,Bulk carrier,Bulk carrier,,877,,179.97,30,14.05,9.822,unknown,21502,34898,14,,,,,,SEA384.pdf,fit,realigned_row
 cdb14f4984,KODIAK ISLAND,Log & bulk carrier,Bulk carrier,Bulk carrier,,559,,179.9,30,15,10.527,unknown,23275,37581,14,,,,,Hong Kong,SEA384.pdf,fit,realigned_row
 a749ecc057,MELODY FAIR,Bulk carrier,Bulk carrier,Bulk carrier,,722,,195,32.26,18.6,13,unknown,34808,60280,14.5,,,,,Liberia,SEA384.pdf,fit,realigned_row
-ee8b2b6d59,FRONT EARL,crude oil tanker,Tanker,Tanker,,Front Earl Inc.,2017,,,,,,302,303121,15.8,,,,,,Sea385.pdf,validate,realigned_row;GT/DWT_atypical_for_class
+ee8b2b6d59,FRONT EARL,crude oil tanker,Tanker,Tanker,,Front Earl Inc.,2017,330,60,29.35,21.55,,156391,303121,15.8,,,,,,Sea385.pdf,validate,realigned_row;manual_override
 f8c83e426d,CRYSTAL RIVER,LPG carrier,Gas carrier,,,,2017,,,,,,46793,54171,,,,,,"82,423m³",Sea385.pdf,validate,realigned_row
 9ef2132ce7,SAKIZAYA LEADER,bulk carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",Sakizaya Leader S.A.,2017,,,,,,44425,81691,14.1,9660,1,,,,Sea385.pdf,validate,realigned_row
 ed74897e90,PRINCESS PACIFIC,Wood chip carrier,Bulk carrier,Bulk carrier,,Oshima Shipping S.A.,2017,,,,,,41281,49608,14.5,,,,,,Sea385.pdf,validate,realigned_row
@@ -1316,7 +1311,7 @@ b02a7c1251,guntû,Cruising ship,Passenger / cruise,Cruise Ship,"Tsuneishi Shipbu
 1aa845f537,SAKIZAYA ORCHID,Bulk carrier,Bulk carrier,Bulk carrier,"Imabari Shipbuilding Co., Ltd./Shin Kasado Dockyard Co., Ltd.",Sakizaya Orchid S.A.,2017,228.9,32.24,20,,,43700,81588,14.5,,,,,228.90m,Sea386.pdf,validate,realigned_row
 0f36f24a29,HIMAWARI 8,Ro/Ro ship,Car carrier / Ro-Ro,,"Mitsubishi Heavy Industries, Ltd.",Nippon Express,2017,166.9,27,23.27,6.85,unknown,1200,6138,23,,,,,166.90m,Sea386.pdf,validate,realigned_row
 47d38eb5e7,AMBELOS,Crude oil carrier,Tanker,Tanker,"Namura Shipbuilding Co., Ltd.","HFS. Wave. Shipping. Co., Ltd.",2017,249.97,44,21.2,14.8,unknown,63484,114674,14.4,,,,,249.97m,Sea386.pdf,validate,realigned_row
-02641faffa,MARITIME CHALLENGER,Multipurpose vessel,General cargo,Cargo vessel,"Oshima Shipbuilding Co., Ltd.",Mercy Navigation Pte. Ltd.,2017,199.99,36,18.54,13.059,unknown,10811,64794,14.6,,,,,199.99m,Sea386.pdf,validate,realigned_row;GT/DWT_atypical_for_class
+02641faffa,MARITIME CHALLENGER,Multipurpose vessel,General cargo,Cargo vessel,"Oshima Shipbuilding Co., Ltd.",Mercy Navigation Pte. Ltd.,2017,199.99,36,18.54,13.059,unknown,39744,64794,14.6,,,,,199.99m,Sea386.pdf,validate,realigned_row;manual_override
 52edbf23a2,AMBORELLA,Ore carrier,Bulk carrier,Bulk carrier,Naikai Zosen Corporation,Nissho Shipping Panama Inc.,2017,160.8,26,14,9.88,unknown,16774,27402,13.5,,,,,160.80m,Sea386.pdf,validate,realigned_row
 c7173ee267,MOL TRUTH,Container carrier,Container ship,Container Ship,"Imabari Shipbuilding Co., Ltd.","Mitsui O.S.K. Lines, Ltd.",,400,58.5,,16,unknown,,,,,,,20182,Panama,Sea387new.pdf,fit,realigned_row;third_dimension_by_ratio
 87a2740610,"93,000 DWT LNG fuelled coal carrier",Coal carrier,Bulk carrier,Bulk carrier,"Namura Shipbuilding Co, Ltd","Mitsui O.S.K. Lines, Ltd. and Tohoku Electric Power Co., Inc.",,,,,,,,93000,,,,,,,Sea387new.pdf,fit,realigned_row
@@ -1347,7 +1342,7 @@ e11c367979,NYK WREN,mega container ship,Container ship,Container Ship,,,2018,364
 a4d9a62fae,NANASHIMA,passenger/car ferry,Ferry / RoPax,,,,2018,55.13,13,9.1,2.9,unknown,765,346,13.5,1235,1,235,,about 13.5kt,Sea389.pdf,validate,realigned_row
 0e48b193bf,CSK ENTERPRISE,Bulk carrier,Bulk carrier,Bulk carrier,,,2018,299.95,50,24.7,,,107449,208660,14.5,,,,,14.5kt,Sea389.pdf,validate,realigned_row
 04165333be,SHINRYO MARU,Bulk carrier,Bulk carrier,Bulk carrier,,,2018,234.99,43,18.4,12.882,unknown,52156,92049,14.1,,,,,14.10kt,Sea389.pdf,validate,realigned_row
-a697974013,SEACHARM,Tanker,Tanker,Tanker,,,2018,,44,21.8,,,60200,112000,15.2,,,,,about 15.2kt,Sea389.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio
+a697974013,SEACHARM,Tanker,Tanker,Tanker,,,2018,228.97,44,21.8,,,60200,112000,15.2,,,,,about 15.2kt,Sea389.pdf,validate,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 38bf5e140f,AFRICAN KESTREL,Log & cargo ship,Bulk carrier,Bulk carrier,,,2018,179.9,30,15,10.527,unknown,23224,37787,14,,,,,14.0kt,Sea389.pdf,validate,realigned_row
 871c595408,SOC GLORY,Bulk carrier,Bulk carrier,Bulk carrier,,,2018,137.03,23,11.4,,,9995,16201,13.4,,,,,13.4kt,Sea389.pdf,validate,realigned_row
 9c5da4debb,SUNNY RAINBOW,Oil/chemical tanker,Tanker,Tanker,,,2018,125.25,20,11.5,8.25,unknown,8081,12355,12.5,3300,1,,,12.5kt,Sea389.pdf,validate,realigned_row
@@ -1367,13 +1362,13 @@ fdd7f4e48f,NORD OLYMPIA,Product/chemical tanker,Tanker,Tanker,,Triton Navigation
 7d4e730209,SOUTHERN REVERENCE,Tanker,Tanker,Tanker,,,2018,243.8,42,21.48,,,60855,108677,15.25,,,,,15.25kt,Sea390.pdf,validate,realigned_row;third_dimension_by_ratio
 3155c8a97e,DIAMOND GAS ORCHID,LNGC,LNG carrier,,Mitsubishi Corporation and Nippon Yusen Kabushiki Kaisha (NYK Line),2324,2018,293.5,48.94,11.505,11.05,unknown,144828,,19.5,12400,1,61,,19.5kt,Sea391.pdf,validate,realigned_row;L/D_out_of_range
 17dfc3acba,ONE STORK,mega container ship,Container ship,Container Ship,Dorothy Ship Holding S.A.,,,364.15,50.6,29.5,15.75,unknown,144285,139335,22.5,,,,14000,22.5kt,Sea391.pdf,fit,realigned_row
-90b78fd3c3,FEDERAL DART,box laker,Bulk carrier,Bulk carrier,Federal Cornwallis Ltd.,,2018,,23.762,14.85,10.83,unknown,20763,34492,14,6050,1,97,,14.0kt,Sea391.pdf,validate,realigned_row;loa_missing
+90b78fd3c3,FEDERAL DART,box laker,Bulk carrier,Bulk carrier,Federal Cornwallis Ltd.,,2018,199.98,23.762,14.85,10.83,unknown,20763,34492,14,6050,1,97,,14.0kt,Sea391.pdf,validate,realigned_row;loa_missing;manual_override
 4a49a49eb2,KYOWA FALCON,RORO/container cargo ship,Car carrier / Ro-Ro,,Pacific Line Trading Inc.,S-5961,,143.03,22.6,14.4,,,12592,12084,14,3630,1,145,649,About 14.0kt,Sea391.pdf,fit,realigned_row
 dcbb06bcfe,KYOWA STORK,RORO/container cargo ship,Car carrier / Ro-Ro,,Kyowa Shipping Co.,S-5962,,143.03,22.6,14.4,,,12592,12032,14,3630,1,145,649,About 14.0kt,Sea391.pdf,fit,realigned_row
 8c342243bb,SILVER TIARA,passenger/car ferry,Ferry / RoPax,,"Kawasaki Kinkai Kisen Kaisha, Ltd.",,,,,,,,8543,3620,19.7,13920,2,167,,About 19.7kt,Sea391.pdf,fit,realigned_row
 1c0f9da6f4,TONEGAWA,Malaccamax-type VLCC,Tanker,Tanker,"Kawasaki Kisen Kaisha, Ltd.",,2018,338.95,60,28.5,21.05,unknown,160057,312858,14.95,,,,,about 14.95kt,Sea391.pdf,validate,realigned_row
 644eadd197,CASTILLO DE CALDELAS,LNG carrier,LNG carrier,,La Arena Navigation S.A.,,,296.98,48.7,27,,,,,19.5,,,,,19.5kt,Sea391.pdf,fit,realigned_row
-176ba1f596,NORDINDEPENDENCE,Tanker,Tanker,Tanker,Nordindependence Shipping C.V.,1392,,,44,21.8,,,60200,112000,15.2,,,,,about 15.2kt,Sea391.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio
+176ba1f596,NORDINDEPENDENCE,Tanker,Tanker,Tanker,Nordindependence Shipping C.V.,1392,,228.97,44,21.8,,,60200,112000,15.2,,,,,about 15.2kt,Sea391.pdf,fit,realigned_row;loa_missing;third_dimension_by_ratio;manual_override
 db9642f762,SINLAU BULKER,Bulk carrier,Bulk carrier,Bulk carrier,Admiral Logistics Corporation,902,,179.97,30,14.05,9.822,unknown,21574,34485,14,,,,,14.0kt,Sea391.pdf,fit,realigned_row
 d62b54530f,AFRICAN GANNET,Log & cargo ship,Bulk carrier,Bulk carrier,African Gannet Shipping Co. Ltd.,563,,179.9,30,15,10.527,unknown,23224,37806,14,,,,,14.0kt,Sea391.pdf,fit,realigned_row
 4084863f7e,NORD KANMON,Bulk carrier,Bulk carrier,Bulk carrier,"Lepta Shipping Co., Ltd.",727,,199.9,32.26,18.6,13,unknown,34808,60236,14.6,,,,,14.6kt,Sea391.pdf,fit,realigned_row
@@ -1578,7 +1573,7 @@ d5ee754a6d,SANKO HAWKING,Bulk carrier,Bulk carrier,Bulk carrier,"Tsuneishi Shipb
 2643040fed,SEADUKE,Crude oil carrier,Tanker,Tanker,"Imabari Shipbuilding Co., Ltd.",,2021,339.36,60,28.5,,,160255,313051,15.5,,,,,,Sea408.pdf,validate,
 df45cc24e4,WAN HAI 327,Container carrier,Container ship,Container Ship,Japan Marine United Corporation,Wan Hai Lines (Singapore) Pte. Ltd.,,203.5,34.8,16.6,11.5,unknown,30531,37160,21.6,,,,,,Sea408.pdf,fit,
 9a3ac16f78,TONQUIPEARL,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.",Nippon Yusen Kabushiki Kaisha,2021,249.98,43,18.5,12.869,unknown,56844,99893,14,,,,,,Sea408.pdf,validate,
-ee14626127,SEAGUARDIAN,Crude oil carrier,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",Seaguardian Tanker Limited,2021,,44,21.8,,,60200,112000,15,,,,,,Sea408.pdf,validate,approx_tonnage
+ee14626127,SEAGUARDIAN,Crude oil carrier,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",Seaguardian Tanker Limited,2021,228.96,44,21.8,,,60200,112000,15,,,,,,Sea408.pdf,validate,approx_tonnage;manual_override
 dc621b27c4,PAVO BRAVE,Bulk carrier,Bulk carrier,Bulk carrier,"Shin Kurushima Dockyard Co., Ltd.",Panamanian owner,2021,196.5,32.26,19.4,,,36762,64247,14,,,,,,Sea408.pdf,validate,
 29f382e579,KAURI,Dunkirkmax bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation (JMU),,2021,292,45,24.55,18.2,unknown,93298,182327,15.05,,,,,,SEA410.pdf,validate,
 7850b5146a,EVER MAJESTY,Panamax bulk carrier,Bulk carrier,Bulk carrier,Shin Kurushima Sanoyas,,2021,229,32.24,20.15,14.594,unknown,43453,81936,14.2,,,,,"97,019m
@@ -1596,7 +1591,7 @@ e514a8c83a,NORA SCHULTE,"KAMSARMAX bulk carrier, 82,000DWT-type",Bulk carrier,Bu
 808cc5d3ca,ONE INFINITY,"24,000TEU container ship",Container ship,Container Ship,"Imabari Shipbuilding Co., Ltd.","Shoei Kisen Kaisha, Ltd.",2023,399.95,61.4,33.2,16.5,unknown,,,,,,,24136,"24,136TEUs of containers",SEA426_fix_240805.pdf,validate,
 8cb2c6a5fe,WAN HAI 363,"3,013TEU container ship",Container ship,Container Ship,Japan Marine United Corporation,Wan Hai Lines (Singapore) Pte. Ltd.,2023,203.5,34.8,16.6,11.5,unknown,30776,36776,21.5,,,,3013,"3,013TEU",Sea420.pdf,validate,
 e26f85f758,FEDERAL PRIDE,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.","Ambitious Line, S.A.",2023,182.998,32.26,15,10.542,unknown,25863,42686,14,,,,,,Sea420.pdf,validate,
-6cae3e0147,PENELOPE,Crude oil carrier,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",Ikaria Shipowners S.A.,2023,,44,21.55,,,60000,114760,14.5,,,,,,Sea420.pdf,validate,approx_tonnage
+6cae3e0147,PENELOPE,Crude oil carrier,Tanker,Tanker,"Sumitomo Heavy Industries Marine & Engineering Co., Ltd.",Ikaria Shipowners S.A.,2023,239.67,44,21.55,,,60000,114760,14.5,,,,,,Sea420.pdf,validate,approx_tonnage;manual_override
 e760dddb8d,PAVO BREEZE,Bulk carrier,Bulk carrier,Bulk carrier,Shin Kurushima Dockyard,Panamanian owner,2023,,32.26,19.4,,,36760,64263,14,,,,,,Sea420.pdf,validate,
 0dfcb0c432,PROMETHEUS,Dunkirkmax-type bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation (JMU),,2024,292,45,24.55,18.234,unknown,93367,182384,14.4,,,,,,SEA424.pdf,validate,
 f94e2dc900,REIMEI,large LNG-fueled coal carrier,LNG carrier,,"Namura Shipbuilding Co., Ltd.",,2023,234.92,38,,14.4,unknown,54684,95792,,,,,,,SEA424.pdf,validate,
@@ -1607,8 +1602,8 @@ dd896b830a,ENEOS MIRAI,LPG-powered LPG/NH3 carrier,Gas carrier,,"Kawasaki Heavy 
 539788d96b,SG OCEAN,Bulk carrier,Bulk carrier,Bulk carrier,Japan Marine United Corporation,,2024,299.99,50,25,18.436,unknown,110334,210933,14,,,,,,SEA424.pdf,validate,
 2948f2f37f,CAPT G,"182,000DWT bulk carrier",Bulk carrier,Bulk carrier,"Namura Shipbuilding Co., Ltd.",,2023,291.92,45,24.6,18.2,unknown,93721,182281,,,,,,,SEA424.pdf,validate,
 1b3a77b6a4,KAWA NAPRANUM,Bulk carrier,Bulk carrier,Bulk carrier,"Oshima Shipbuilding Co., Ltd.","Lucretia Shipping, S.A.",2023,228.41,36.5,20.39,14.348,unknown,48105,87396,14.3,,,,,,SEA424.pdf,validate,
-93476482eb,BBC MERCURY,Bulk carrier,Bulk carrier,Bulk carrier,"Onomichi Dockyard Co., Ltd./Saiki Heavy Industries Co., Ltd.",Briese Schiffahrts GmbH & Co. KG,2023,,32,14.8,,,24748,39500,13.5,,,,,,SEA424.pdf,validate,approx_tonnage
-f2b64a6357,LIMONE,General cargo ship,General cargo,Cargo vessel,"Shin Kurushima Hiroshima Dockyard Co., Ltd.",Panamanian owner,2024,,109.6,19.6,,,7356,11712,13,,,,,,SEA424.pdf,validate,B_out_of_range
+93476482eb,BBC MERCURY,Bulk carrier,Bulk carrier,Bulk carrier,"Onomichi Dockyard Co., Ltd./Saiki Heavy Industries Co., Ltd.",Briese Schiffahrts GmbH & Co. KG,2023,174,32,14.8,,,24748,39500,13.5,,,,,,SEA424.pdf,validate,approx_tonnage;manual_override
+f2b64a6357,LIMONE,General cargo ship,General cargo,Cargo vessel,"Shin Kurushima Hiroshima Dockyard Co., Ltd.",Panamanian owner,2024,114,109.6,19.6,,,7356,11712,13,,,,,,SEA424.pdf,validate,manual_override;B_out_of_range;L/B_out_of_range;L/D_out_of_range
 cc7e4b4abd,CAPE HAYATE,"LNG dual-fuel 210,000DWT bulk carrier",LNG carrier,,Japan Marine United Corporation (JMU),"Kawasaki Kisen Kaisha, Ltd.",2024,299.9,50,25,18.436,unknown,110439,210870,13.7,,,,,,SEA426_fix_240805.pdf,validate,
 4cfda4283d,GAS GARNET,LPG-powered LPG/NH3 carrier,Gas carrier,,"Kawasaki Heavy Industries, Ltd.",,2024,229.9,37.2,21.9,11.65,unknown,49561,56360,17,,,,,"86,953m³",SEA426_fix_240805.pdf,validate,
 b4f1d81b17,ONE INNOVATION,"24,000TEU container ship",Container ship,Container Ship,Japan Marine United Corporation,"Shoei Kisen Kaisha, Ltd.",2023,399.95,61.4,33.2,16.5,unknown,,,,,,,24136,"24,136TEUs of containers",SEA426_fix_240805.pdf,validate,

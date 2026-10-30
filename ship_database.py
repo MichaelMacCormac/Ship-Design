@@ -223,7 +223,7 @@ def is_aligned(row):
     if k and not k <= {"power", "bare", "text"}:
         return False
     k = _kinds(row.get("delivery_date"))
-    if k and not k <= {"date", "text"}:
+    if k and not k <= {"date", "text"} and parse_date_year(row.get("delivery_date")) is None:
         return False
     return True
 
@@ -416,6 +416,10 @@ def extract_shifted(rec, columns):
     start = columns.index(SCAN_FROM)
     toks = []
     for c in columns[start:]:
+        if c == "delivery_date" and parse_date_year(r.get(c)) is not None:
+            # a bare year here is the delivery year, not a tonnage
+            toks.append((c, "date", parse_date_year(r.get(c)), "", r.get(c)))
+            continue
         for kind, val, tag in classify_cell(r.get(c)):
             toks.append((c, kind, val, tag, r.get(c)))
     rec.flag("realigned_row")
@@ -700,28 +704,58 @@ def temporal_split(recs, cutoff=None, frac=0.30):
 
 
 def apply_overrides(recs, path):
-    """overrides.csv: ship_id, field, value, note. field 'reject' with a
-    reason as value moves the ship to the rejected list."""
+    """Apply data/overrides.csv (columns: ship_id, field, value, note, reject).
+
+    * field + value: set that clean field (blank value clears it). Numbers
+      may use thousands separators ("37,160").
+    * reject column non-empty (or field 'reject'): move the ship to the
+      rejected list with reason "manual: <note>" (the note, else the reject
+      text, else "not relevant").
+    Returns (rejected, n_applied, problems); problems lists rows that could
+    not be applied (unknown ship_id or field, non-numeric value), so a typo
+    is reported in the summary instead of silently ignored.
+    """
     if not os.path.exists(path):
-        return [], 0
+        return [], 0, []
     by_id = {r.id: r for r in recs}
-    rejected, n = [], 0
+    rejected, n, problems = [], 0, []
+    seen_reject = set()
     with open(path, encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
-            sid, field = (row.get("ship_id") or "").strip(), (row.get("field") or "").strip()
-            if not sid or sid not in by_id or not field:
+        for line_no, row in enumerate(csv.DictReader(f), start=2):
+            sid = (row.get("ship_id") or "").strip()
+            field = (row.get("field") or "").strip()
+            raw_val = (row.get("value") or "").strip()
+            note = (row.get("note") or "").strip()
+            reject = (row.get("reject") or "").strip()
+            if not sid:
                 continue
-            rec, raw_val = by_id[sid], (row.get("value") or "").strip()
-            if field == "reject":
-                rejected.append((rec, f"manual: {raw_val or row.get('note', '')}"))
+            if sid not in by_id:
+                problems.append(f"line {line_no}: ship_id {sid} not among kept ships")
+                continue
+            rec = by_id[sid]
+            if reject or field == "reject":
+                if sid not in seen_reject:
+                    seen_reject.add(sid)
+                    rejected.append((rec, f"manual: {note or (raw_val if field == 'reject' else '') or reject}"))
+                continue
+            if not field:
+                problems.append(f"line {line_no}: no field and no reject for {sid}")
                 continue
             if field not in CLEAN_COLUMNS or field in ("ship_id", "split", "flags"):
+                problems.append(f"line {line_no}: field {field!r} cannot be overridden")
                 continue
-            value = (float(raw_val) if raw_val else None) if field in NUMERIC else raw_val
-            rec.set(field, value, rec.v.get(field), field, f"manual override: {row.get('note', '')}".strip())
+            if field in NUMERIC and raw_val:
+                try:
+                    value = to_float(raw_val)
+                except ValueError:
+                    problems.append(f"line {line_no}: {field} value {raw_val!r} is not a number")
+                    continue
+            else:
+                value = raw_val if field not in NUMERIC else None
+            rec.set(field, value, rec.v.get(field), field, f"manual override: {note}".strip(": "))
             rec.flag("manual_override")
             n += 1
-    return rejected, n
+    return rejected, n, problems
 
 
 def _fmt(v):
@@ -755,7 +789,7 @@ def run(input_path="boat_database_V2.csv", out_dir="data", cutoff=None, seed=42,
         rejected.append((r, f"duplicate_of:{into}"))
 
     overrides = overrides or os.path.join(out_dir, "overrides.csv")
-    manual_rej, n_over = apply_overrides(kept, overrides)
+    manual_rej, n_over, problems = apply_overrides(kept, overrides)
     if manual_rej:
         ids = {r.id for r, _ in manual_rej}
         kept = [r for r in kept if r.id not in ids]
@@ -791,29 +825,54 @@ def run(input_path="boat_database_V2.csv", out_dir="data", cutoff=None, seed=42,
     flagged = [r for r in kept if [f for f in r.flags if f != "realigned_row"]]
     review_cols = ["ship_id", "boat_name", "ship_class", "source_file", "delivery_year", "LOA_m", "B_m", "D_m",
                    "T_m", "GT", "DWT", "speed_kn", "power_kW", "flags"]
-    with open(os.path.join(out_dir, "review_sample.csv"), "w", newline="", encoding="utf-8") as f:
+    review_path = os.path.join(out_dir, "review_sample.csv")
+    marks = read_review_marks(review_path)
+    listed = {r.id for r in sample} | {r.id for r in flagged}
+    previously = [r for r in kept if r.id in marks and r.id not in listed]
+    mark_cols = ["verified", "correct_field", "correct_value", "note"]
+    with open(review_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["why_listed"] + review_cols + ["verified", "correct_field", "correct_value", "note"])
-        for why, group in (("random", sample), ("flagged", flagged)):
+        w.writerow(["why_listed"] + review_cols + mark_cols)
+        for why, group in (("random", sample), ("flagged", flagged), ("previously_reviewed", previously)):
             for r in group:
-                w.writerow([why] + [_fmt(r.v.get(c)) for c in review_cols] + ["", "", "", ""])
+                m = marks.get(r.id, {})
+                w.writerow([why] + [_fmt(r.v.get(c)) for c in review_cols] + [m.get(c, "") for c in mark_cols])
     if not os.path.exists(overrides):
         with open(overrides, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(["ship_id", "field", "value", "note"])
+            csv.writer(f).writerow(["ship_id", "field", "value", "note", "reject"])
 
-    summary = build_summary(raw_rows, kept, rejected, merged, cut, n_over, input_path)
+    n_verified = sum(1 for m in marks.values() if m.get("verified", "").strip())
+    summary = build_summary(raw_rows, kept, rejected, merged, cut, n_over, input_path, problems, n_verified)
     with open(os.path.join(out_dir, "cleaning_summary.txt"), "w", encoding="utf-8") as f:
         f.write(summary)
     return kept, rejected, cut, summary
 
 
-def build_summary(raw_rows, kept, rejected, merged, cutoff, n_over, input_path):
+def read_review_marks(path):
+    """{ship_id: {verified, correct_field, correct_value, note}} for rows the
+    reviewer filled in, so regenerating review_sample.csv keeps them."""
+    if not os.path.exists(path):
+        return {}
+    marks = {}
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            m = {c: (row.get(c) or "").strip() for c in ("verified", "correct_field", "correct_value", "note")}
+            if any(m.values()):
+                marks[row.get("ship_id", "")] = m
+    return marks
+
+
+def build_summary(raw_rows, kept, rejected, merged, cutoff, n_over, input_path, problems=(), n_verified=0):
     lines = [f"Cleaning summary for {input_path}", ""]
     lines.append(f"Raw rows:                 {len(raw_rows)}")
     lines.append(f"Kept:                     {len(kept)}")
     reasons = Counter(why.split(":")[0] for _, why in rejected)
     lines.append(f"Rejected / merged:        {len(rejected)}  " + str(dict(reasons)))
     lines.append(f"Manual overrides applied: {n_over}")
+    lines.append(f"Ships marked verified in review: {n_verified}")
+    if problems:
+        lines.append(f"Override rows NOT applied ({len(problems)}):")
+        lines += [f"  {p}" for p in problems]
     realigned = sum(1 for r in kept if "realigned_row" in r.flags)
     lines.append(f"Rows rebuilt by unit (realigned): {realigned}")
     lines.append("")

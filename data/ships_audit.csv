@@ -42,6 +42,7 @@ bd5c9179c3,DWT,"17,500t",dim_draft,17500,realign:tonnage_unit
 bd5c9179c3,delivery_year,"September 6, 2022",hull_no,2022,realign:date
 bd5c9179c3,power_kW,"2,625kW x 111.8min⁻¹",ton_deadweight,2625,realign:power
 bd5c9179c3,source_file,SEA-Japan-No.-416.pdf,engine_engine_model,SEA-Japan-No.-416.pdf,realign:source
+bd5c9179c3,LOA_m,,LOA_m,130,manual override
 6a642bfc25,LOA_m,292.00m,classification,292,realign:offset-2
 6a642bfc25,B_m,45.00m,registry,45,realign:offset-2
 6a642bfc25,D_m,24.55m,dim_length_oa,24.55,realign:offset-2
@@ -67,6 +68,7 @@ bd5c9179c3,source_file,SEA-Japan-No.-416.pdf,engine_engine_model,SEA-Japan-No.-4
 2fd2f0f7da,speed_kn,15.0kt,delivery_date,15,realign:speed
 2fd2f0f7da,delivery_year,"August 31, 2022",hull_no,2022,realign:date
 2fd2f0f7da,source_file,SEA-Japan-No.-416.pdf,engine_engine_model,SEA-Japan-No.-416.pdf,realign:source
+2fd2f0f7da,LOA_m,,LOA_m,228.96,manual override
 547a00e2d2,B_m,28.20m,registry,28.2,realign:length_order
 547a00e2d2,D_m,17.20m,dim_length_oa,17.2,realign:length_order; third_dimension_by_ratio
 547a00e2d2,GT,"23,464",dim_depth,23464,realign:tonnage_bare_gt
@@ -74,6 +76,7 @@ bd5c9179c3,source_file,SEA-Japan-No.-416.pdf,engine_engine_model,SEA-Japan-No.-4
 547a00e2d2,speed_kn,14.5kt,delivery_date,14.5,realign:speed
 547a00e2d2,delivery_year,"October 13, 2022",hull_no,2022,realign:date
 547a00e2d2,source_file,SEA-Japan-No.-416.pdf,engine_engine_model,SEA-Japan-No.-416.pdf,realign:source
+547a00e2d2,LOA_m,,LOA_m,166.5,manual override
 aa0185e2fd,LOA_m,292.00m,classification,292,realign:offset-2
 aa0185e2fd,B_m,45.00m,registry,45,realign:offset-2
 aa0185e2fd,D_m,24.55m,dim_length_oa,24.55,realign:offset-2
@@ -192,12 +195,14 @@ c6c8fd1627,GT,"2,156",dim_depth,2156,realign:tonnage_bare_gt
 c6c8fd1627,DWT,"1,446t",dim_draft,1446,realign:tonnage_unit
 c6c8fd1627,speed_kn,12.5kt,delivery_date,12.5,realign:speed
 c6c8fd1627,source_file,SEA-Japan-No.-421.pdf,engine_engine_model,SEA-Japan-No.-421.pdf,realign:source
+c6c8fd1627,LOA_m,,LOA_m,75.2,manual override
 a09ec1378e,B_m,21.20m,registry,21.2,realign:length_order
 a09ec1378e,D_m,14.05m,dim_length_oa,14.05,realign:length_order; third_dimension_by_ratio
 a09ec1378e,GT,"9,943",dim_depth,9943,realign:tonnage_bare_gt
 a09ec1378e,DWT,"13,542t",dim_draft,13542,realign:tonnage_unit
 a09ec1378e,speed_kn,12.0kt,delivery_date,12,realign:speed
 a09ec1378e,source_file,SEA-Japan-No.-421.pdf,engine_engine_model,SEA-Japan-No.-421.pdf,realign:source
+a09ec1378e,LOA_m,,LOA_m,114,manual override
 94e5c696e5,LOA_m,229.00m,classification,229,realign:offset-2
 94e5c696e5,B_m,32.26m,registry,32.26,realign:offset-2
 94e5c696e5,D_m,20.15m,dim_length_oa,20.15,realign:offset-2
@@ -288,18 +293,21 @@ f2464b14e7,GT,"approx. 60,000",dim_breadth,60000,realign:tonnage_bare_gt
 f2464b14e7,DWT,"114,800t",dim_depth,114800,realign:tonnage_unit
 f2464b14e7,speed_kn,14.5kt,delivery_date,14.5,realign:speed
 f2464b14e7,source_file,SEA-Japan-No.-422.pdf,ton_deadweight,SEA-Japan-No.-422.pdf,realign:source
+f2464b14e7,LOA_m,,LOA_m,239.67,manual override
 da79894ae1,B_m,23.00m,classification,23,realign:length_order
 da79894ae1,D_m,12.30m,registry,12.3,realign:length_order; third_dimension_by_ratio
 da79894ae1,GT,"11,361",dim_breadth,11361,realign:tonnage_bare_gt
 da79894ae1,DWT,"16,905t",dim_depth,16905,realign:tonnage_unit
 da79894ae1,speed_kn,12.85kt,delivery_date,12.85,realign:speed
 da79894ae1,source_file,SEA-Japan-No.-422.pdf,ton_deadweight,SEA-Japan-No.-422.pdf,realign:source
+da79894ae1,LOA_m,,LOA_m,130,manual override
 3992717196,B_m,17.70m,classification,17.7,realign:length_order
 3992717196,GT,"4,551",dim_breadth,4551,realign:tonnage_bare_gt
 3992717196,DWT,"5,274t",dim_depth,5274,realign:tonnage_unit
 3992717196,speed_kn,13.40kt,delivery_date,13.4,realign:speed
 3992717196,power_kW,"2,200kW x 178 min⁻¹",ton_gross_tonnage,2200,realign:power
 3992717196,source_file,SEA-Japan-No.-422.pdf,ton_deadweight,SEA-Japan-No.-422.pdf,realign:source
+3992717196,LOA_m,,LOA_m,95.3,manual override
 47d1f69f2a,LOA_m,230.0m,registry,230,realign:length_order
 47d1f69f2a,B_m,36.6m,dim_length_oa,36.6,realign:length_order
 47d1f69f2a,T_m,12.0m,dim_breadth,12,realign:length_order; third_dimension_by_ratio
@@ -406,6 +414,7 @@ fa78f34efc,source_file,SEA-Japan-No.-425.pdf,ton_gross_tonnage,SEA-Japan-No.-425
 9a74574232,delivery_year,"March 19, 2024",hull_no,2024,realign:date
 9a74574232,power_kW,"3,560kW",engine_engine_model,3560,realign:power
 9a74574232,source_file,SEA-Japan-No.431.pdf,engine_power_output,SEA-Japan-No.431.pdf,realign:source
+9a74574232,DWT,5646.0,DWT,,manual override
 bad64fa6fc,LOA_m,291.92m,classification,291.92,realign:length_order
 bad64fa6fc,B_m,45.0m,registry,45,realign:length_order
 bad64fa6fc,T_m,18.2m,dim_length_oa,18.2,realign:length_order; third_dimension_by_ratio
@@ -462,6 +471,8 @@ b99f5ba772,DWT,"abt. 40,000t",engine_power_output,40000,realign:tonnage_unit
 b99f5ba772,speed_kn,abt. 14.9kt,delivery_date,14.9,realign:speed
 b99f5ba772,delivery_year,"February 9, 2024",ton_deadweight,2024,realign:date
 b99f5ba772,source_file,SEA-Japan-No.-425.pdf,ton_gross_tonnage,SEA-Japan-No.-425.pdf,realign:source
+b99f5ba772,LOA_m,,LOA_m,174,manual override
+b99f5ba772,D_m,,D_m,14.8,manual override
 5e060b3598,LOA_m,82.4m,registry,82.4,realign:offset-1
 5e060b3598,B_m,18.2m,dim_length_oa,18.2,realign:offset-1
 5e060b3598,D_m,7.8m,dim_breadth,7.8,realign:offset-1
@@ -478,6 +489,7 @@ b99f5ba772,source_file,SEA-Japan-No.-425.pdf,ton_gross_tonnage,SEA-Japan-No.-425
 7dcf6743c1,delivery_year,"June 18, 2024",hull_no,2024,realign:date
 7dcf6743c1,source_file,SEA-Japan-No.-427-3.pdf,engine_power_output,SEA-Japan-No.-427-3.pdf,realign:source
 7dcf6743c1,TEU,"12,800TEU",delivery_date,12800,realign:teu
+7dcf6743c1,LOA_m,,LOA_m,335,manual override
 8f6c2738f7,LOA_m,229.000m,registry,229,realign:offset-1
 8f6c2738f7,B_m,32.240m,dim_length_oa,32.24,realign:offset-1
 8f6c2738f7,D_m,20.150m,dim_breadth,20.15,realign:offset-1
@@ -519,12 +531,15 @@ c179308cab,DWT,"1,438t",ton_gross_tonnage,1438,realign:tonnage_unit
 c179308cab,speed_kn,12.5kt,capacity,12.5,realign:speed
 c179308cab,delivery_year,"July 2, 2024",hull_no,2024,realign:date
 c179308cab,source_file,SEA-Japan-No.-427-3.pdf,engine_power_output,SEA-Japan-No.-427-3.pdf,realign:source
+c179308cab,LOA_m,,LOA_m,75.2,manual override
 c2c5a4effd,B_m,17.60m,dim_length_oa,17.6,realign:length_order
 c2c5a4effd,GT,"4,800",dim_draft,4800,realign:tonnage_bare_gt
 c2c5a4effd,DWT,"4,600t",ton_gross_tonnage,4600,realign:tonnage_unit
 c2c5a4effd,speed_kn,13.5kt,capacity,13.5,realign:speed
 c2c5a4effd,delivery_year,"July 31, 2024",hull_no,2024,realign:date
 c2c5a4effd,source_file,SEA-Japan-No.-427-3.pdf,engine_power_output,SEA-Japan-No.-427-3.pdf,realign:source
+c2c5a4effd,LOA_m,,LOA_m,99.9,manual override
+c2c5a4effd,D_m,,D_m,8,manual override
 2605996cf0,LOA_m,335.00m,speed,335,realign:offset-3
 2605996cf0,B_m,51.00m,classification,51,realign:offset-3
 2605996cf0,D_m,27.10m,registry,27.1,realign:offset-3
@@ -550,6 +565,7 @@ c2c5a4effd,source_file,SEA-Japan-No.-427-3.pdf,engine_power_output,SEA-Japan-No.
 6f1ac770f7,speed_kn,21.50kt,delivery_date,21.5,realign:speed
 6f1ac770f7,source_file,SEA-Japan-No.-429.pdf,ton_deadweight,SEA-Japan-No.-429.pdf,realign:source
 6f1ac770f7,TEU,"3,055TEU",hull_no,3055,realign:teu
+6f1ac770f7,DWT,371600.0,DWT,37160,manual override
 ac20d76af6,LOA_m,182.94m,speed,182.94,realign:offset-3
 ac20d76af6,B_m,31.6m,classification,31.6,realign:offset-3
 ac20d76af6,D_m,14.80m,registry,14.8,realign:offset-3
@@ -1035,12 +1051,6 @@ fc381f477a,source_file,SEA-Japan_No373_0930.pdf,dim_draft,SEA-Japan_No373_0930.p
 5694a4febf,LOA_m,Approx. 276.00m,dim_length_oa,276,realign:length_order
 5694a4febf,B_m,43.40m,dim_breadth,43.4,realign:length_order
 5694a4febf,D_m,25.50m,dim_depth,25.5,realign:length_order; third_dimension_by_ratio
-f52ac48277,LOA_m,Approx. 252.00m,dim_length_oa,252,realign:offset+0
-f52ac48277,B_m,44.00m,dim_breadth,44,realign:offset+0
-f52ac48277,D_m,22.50m,dim_depth,22.5,realign:offset+0
-f52ac48277,T_m,14.50m (designed),dim_draft,14.5,realign:offset+0
-f52ac48277,GT,"Approx. 64,200",ton_gross_tonnage,64200,realign:offset+0
-f52ac48277,DWT,"Approx. 106,000 MT",ton_deadweight,106000,realign:offset+0
 4aee9a8c11,power_kW,"13,500PS",engine_power_output,9929.2,unit:PS->kW
 09ed0bd431,power_kW,"12,200ps",engine_power_output,8973.1,unit:PS->kW
 35592d2d87,LOA_m,231.419m,dim_length_oa,231.419,realign:offset+0
@@ -1076,6 +1086,9 @@ d98af259cc,power_kW,"MCR: 12,200ps",engine_power_output,8973.1,unit:PS->kW
 0813afde46,D_m,20.20m,dim_depth,20.2,realign:offset+0
 0813afde46,T_m,6.70m (design),dim_draft,6.7,realign:offset+0
 0813afde46,DWT,"7,042t (at d = 6.85m)",ton_deadweight,7042,realign:offset+0
+f6961add3b,B_m,279.0,B_m,45,manual override
+f6961add3b,D_m,45.0,D_m,24.4,manual override
+f6961add3b,T_m,17.955,T_m,17.955,manual override
 21cdda86e5,power_kW,"2 x 12,600kW",engine_power_output,25200,unit:x2 engines
 8f7701a9e0,power_kW,"2 x 12,600kW",engine_power_output,25200,unit:x2 engines
 fd22ab1cbf,power_kW,"77,770ps",engine_power_output,57199.8,unit:PS->kW
@@ -1091,16 +1104,8 @@ c01fbed3ce,power_kW,"MCR: 11,160 ps x 110.0rpm",engine_power_output,8208.2,unit:
 35008e7e36,T_m,8.524m,dim_draft,8.524,realign:length_order; third_dimension_by_ratio
 35008e7e36,GT,"41,662t",ton_gross_tonnage,41662,realign:tonnage_order
 35008e7e36,DWT,"15,089t",ton_deadweight,15089,realign:tonnage_order
-7f7b1b2411,GT,2001,delivery_date,2001,realign:tonnage_remaining
-7f7b1b2411,DWT,"172,000DWT",ton_deadweight,172000,realign:tonnage_tag
 a6b255e7ae,power_kW,"12,400ps",engine_power_output,9120.2,unit:PS->kW
 41ae8777d6,power_kW,"12,200ps",engine_power_output,8973.1,unit:PS->kW
-83416d6077,LOA_m,168.00m,dim_length_oa,168,realign:offset+0
-83416d6077,B_m,27.50m,dim_breadth,27.5,realign:offset+0
-83416d6077,D_m,18.15m,dim_depth,18.15,realign:offset+0
-83416d6077,T_m,6.50m,dim_draft,6.5,realign:offset+0
-83416d6077,GT,"15,732t",ton_gross_tonnage,15732,realign:offset+0
-83416d6077,DWT,"5,144mt",ton_deadweight,5144,realign:offset+0
 5029c41eba,LOA_m,288.97m,dim_length_oa,288.97,realign:offset+0
 5029c41eba,B_m,45.00m,dim_breadth,45,realign:offset+0
 5029c41eba,D_m,24.40m,dim_depth,24.4,realign:offset+0
@@ -1115,11 +1120,6 @@ a6b255e7ae,power_kW,"12,400ps",engine_power_output,9120.2,unit:PS->kW
 1afbf8c4f8,T_m,9.761m,dim_draft,9.761,realign:offset+0
 1afbf8c4f8,GT,"16,951t",ton_gross_tonnage,16951,realign:offset+0
 1afbf8c4f8,DWT,"28,442t",ton_deadweight,28442,realign:offset+0
-1f2641e76b,LOA_m,119.2m,dim_length_oa,119.2,realign:offset+0
-1f2641e76b,B_m,20m,dim_breadth,20,realign:offset+0
-1f2641e76b,D_m,11.65m,dim_depth,11.65,realign:offset+0
-1f2641e76b,GT,"about 7,350t",ton_gross_tonnage,7350,realign:offset+0
-1f2641e76b,DWT,"11,500t",ton_deadweight,11500,realign:offset+0
 753a8f4f82,power_kW,Generators: 400kW x 3 units; Propulsion units: 500kW inverter-control electric motors x 2 units,engine_power_output,1200,unit:x3 engines
 460b696275,power_kW,"12,200ps",engine_power_output,8973.1,unit:PS->kW
 ecbebbb76e,LOA_m,180.00m,dim_length_oa,180,realign:offset+0
@@ -1211,6 +1211,7 @@ e1e4422e7a,T_m,11.655m,dim_draft,11.655,realign:length_order
 e1e4422e7a,GT,"27,729t",ton_gross_tonnage,27729,realign:tonnage_order
 e1e4422e7a,DWT,"48,549t",source_file,48549,realign:tonnage_order
 e1e4422e7a,source_file,Sea323.pdf,engine_power_output,Sea323.pdf,realign:source
+e1e4422e7a,LOA_m,,LOA_m,182.4,manual override
 395af36f84,LOA_m,249.0m,dim_length_oa,249,realign:offset+0
 395af36f84,B_m,44.00m,dim_breadth,44,realign:offset+0
 395af36f84,D_m,20.80 m,dim_depth,20.8,realign:offset+0
@@ -1228,24 +1229,12 @@ c903d769a3,B_m,28.20m,dim_breadth,28.2,realign:length_order
 c903d769a3,T_m,9.326m,dim_draft,9.326,realign:length_order; third_dimension_by_ratio
 c903d769a3,GT,"41,886",ton_gross_tonnage,41886,realign:tonnage_bare_gt
 c903d769a3,DWT,"14,382t",ton_deadweight,14382,realign:tonnage_unit
-ad843d4838,power_kW,"1,650kW x 2 units",engine_power_output,3300,unit:x2 engines
 29c5477989,power_kW,"4,500kW at 750rpm x 2 units",engine_power_output,9000,unit:x2 engines
 bb3a2ec383,power_kW,"13,850ps x 95.0rpm",engine_power_output,10186.7,unit:PS->kW
 e984b7af5d,power_kW,"12,930ps x 129.0rpm",engine_power_output,9510,unit:PS->kW
-58ceeb2015,LOA_m,339.9m,dim_length_oa,339.9,realign:offset+0
-58ceeb2015,B_m,60.00m,dim_breadth,60,realign:offset+0
-58ceeb2015,D_m,28.80m,dim_depth,28.8,realign:offset+0
-58ceeb2015,T_m,21.65m,dim_draft,21.65,realign:offset+0
-58ceeb2015,GT,"167,500",ton_gross_tonnage,167500,realign:offset+0
-58ceeb2015,DWT,"335,000t",ton_deadweight,335000,realign:offset+0
 f5065fe966,power_kW,"Two 9,000ps main engines",engine_power_output,6619.5,unit:PS->kW
 fd6140df60,power_kW,"16,680 PS at 105.0 rpm",engine_power_output,12268.1,unit:PS->kW
 f1666caf1c,power_kW,4000ps,engine_power_output,2942,unit:PS->kW
-e9ec5b6bdf,LOA_m,34.20m,dim_length_oa,34.2,realign:offset+0
-e9ec5b6bdf,B_m,8.00m,dim_breadth,8,realign:offset+0
-e9ec5b6bdf,D_m,2.20m,dim_depth,2.2,realign:offset+0
-e9ec5b6bdf,T_m,0.715m,dim_draft,0.715,realign:offset+0
-e9ec5b6bdf,GT,122,ton_gross_tonnage,122,realign:offset+0
 e9ec5b6bdf,power_kW,423kW x 2 units,engine_power_output,846,unit:x2 engines
 5bf6124e1d,power_kW,"6,070kW x 2 units",engine_power_output,12140,unit:x2 engines
 7343dd5753,power_kW,260kW x 2,engine_power_output,520,unit:x2 engines
@@ -1272,10 +1261,17 @@ bf70aef070,power_kW,"8,700kW x 2 units (Main engine), 12.9MW x 1 unit (Pod syste
 6bd6c3c7e3,DWT,"about 97,000t",engine_engine_model,97000,realign:tonnage_unit
 6bd6c3c7e3,source_file,Sea355.pdf,dim_draft,Sea355.pdf,realign:source
 6bd6c3c7e3,TEU,"8,600TEUs",delivery_date,8600,realign:teu
+6bd6c3c7e3,LOA_m,,LOA_m,334.55,manual override
+6bd6c3c7e3,B_m,,B_m,45.6,manual override
+6bd6c3c7e3,D_m,,D_m,24.4,manual override
 6b26d38855,GT,1702,ton_gross_tonnage,1702,realign:tonnage_bare_gt
 6b26d38855,DWT,"58,648t",engine_engine_model,58648,realign:tonnage_unit
 6b26d38855,speed_kn,about 14.45kt,capacity,14.45,realign:speed
 6b26d38855,source_file,Sea355.pdf,dim_draft,Sea355.pdf,realign:source
+6b26d38855,LOA_m,,LOA_m,197,manual override
+6b26d38855,B_m,,B_m,32.26,manual override
+6b26d38855,D_m,,D_m,18.1,manual override
+6b26d38855,T_m,,T_m,12.65,manual override
 5d41d88077,DWT,"181,303DWT",engine_engine_model,181303,realign:tonnage_tag
 5d41d88077,speed_kn,14.0kt,capacity,14,realign:speed
 5d41d88077,source_file,Sea355.pdf,dim_draft,Sea355.pdf,realign:source
@@ -1654,9 +1650,6 @@ d312263e7f,source_file,Sea358.pdf,ton_gross_tonnage,Sea358.pdf,realign:source
 12e6840be3,source_file,Sea358.pdf,ton_gross_tonnage,Sea358.pdf,realign:source
 643dd6b047,DWT,"63,415 mt",registry,63415,realign:tonnage_tag
 643dd6b047,power_kW,"9,480 kW",classification,9480,realign:power
-651e55f9ae,GT,"60,154 GT",dim_draft,60154,realign:tonnage_tag
-651e55f9ae,DWT,"1,793 tons",delivery_date,1793,realign:tonnage_remaining
-651e55f9ae,source_file,Sea360.pdf,engine_power_output,Sea360.pdf,realign:source
 06cbd468e7,GT,749 GT,dim_draft,749,realign:tonnage_tag
 06cbd468e7,DWT,"1,793 tons",delivery_date,1793,realign:tonnage_remaining
 06cbd468e7,source_file,Sea360.pdf,engine_power_output,Sea360.pdf,realign:source
@@ -1823,6 +1816,10 @@ f0a51fda0d,GT,"40,334",registry,40334,realign:tonnage_bare_gt
 f0a51fda0d,DWT,"75,005t",dim_length_oa,75005,realign:tonnage_unit
 f0a51fda0d,speed_kn,14.5kt,delivery_date,14.5,realign:speed
 f0a51fda0d,source_file,Sea362.pdf,dim_depth,Sea362.pdf,realign:source
+6be095513f,LOA_m,,LOA_m,188.8,manual override
+6be095513f,B_m,,B_m,26.6,manual override
+6be095513f,D_m,,D_m,15.7,manual override
+6be095513f,speed_kn,,speed_kn,13.5,manual override
 18d6dad48c,LOA_m,335.0m,classification,335,realign:offset-2
 18d6dad48c,B_m,60m,registry,60,realign:offset-2
 18d6dad48c,D_m,29.0m,dim_length_oa,29,realign:offset-2
@@ -2047,6 +2044,7 @@ e196eb05ad,source_file,Sea368.pdf,ton_deadweight,Sea368.pdf,realign:source
 1612aacb0c,delivery_year,"January 28, 2015",hull_no,2015,realign:date
 1612aacb0c,power_kW,"14,940kW",engine_engine_model,14940,realign:power
 1612aacb0c,source_file,Sea370.pdf,engine_power_output,Sea370.pdf,realign:source
+1612aacb0c,LOA_m,,LOA_m,179.9,manual override
 ec4774be5a,LOA_m,195.0m,registry,195,realign:offset-1
 ec4774be5a,B_m,29.60m,dim_length_oa,29.6,realign:offset-1
 ec4774be5a,D_m,20.60m,dim_breadth,20.6,realign:offset-1
@@ -2108,6 +2106,7 @@ c7b83f997a,source_file,Sea370.pdf,engine_power_output,Sea370.pdf,realign:source
 2f77f0536c,speed_kn,15.0kt,capacity,15,realign:speed
 2f77f0536c,delivery_year,"February 27, 2015",hull_no,2015,realign:date
 2f77f0536c,source_file,Sea370.pdf,engine_power_output,Sea370.pdf,realign:source
+2f77f0536c,LOA_m,,LOA_m,224.64,manual override
 9369b344e5,LOA_m,143.02m,registry,143.02,realign:offset-1
 9369b344e5,B_m,24.6m,dim_length_oa,24.6,realign:offset-1
 9369b344e5,D_m,13.2m,dim_breadth,13.2,realign:offset-1
@@ -2413,6 +2412,7 @@ e2bec3313d,speed_kn,about 14.6kt,capacity,14.6,realign:speed
 e2bec3313d,delivery_year,"January 21, 2016",hull_no,2016,realign:date
 e2bec3313d,power_kW,"9,480kW",ton_deadweight,9480,realign:power
 e2bec3313d,source_file,Sea376.pdf,engine_engine_model,Sea376.pdf,realign:source
+e2bec3313d,LOA_m,,LOA_m,209.99,manual override
 8387a41701,LOA_m,293.00m,speed,293,realign:offset-3
 8387a41701,B_m,48.90m,classification,48.9,realign:offset-3
 8387a41701,D_m,27.00m,registry,27,realign:offset-3
@@ -2466,6 +2466,7 @@ d23f319236,DWT,"109,991t",dim_draft,109991,realign:tonnage_unit
 d23f319236,speed_kn,about 14.9kt,capacity,14.9,realign:speed
 d23f319236,delivery_year,"February 10, 2016",hull_no,2016,realign:date
 d23f319236,source_file,Sea376.pdf,engine_engine_model,Sea376.pdf,realign:source
+d23f319236,LOA_m,,LOA_m,234.34,manual override
 5e4cd1bd40,LOA_m,179.90m,classification,179.9,realign:offset-2
 5e4cd1bd40,B_m,30.00m,registry,30,realign:offset-2
 5e4cd1bd40,D_m,15.00m,dim_length_oa,15,realign:offset-2
@@ -2575,6 +2576,7 @@ e3d64867d6,source_file,Sea377.pdf,engine_power_output,Sea377.pdf,realign:source
 811bea62ca,speed_kn,about 15.0kt,capacity,15,realign:speed
 811bea62ca,delivery_year,"February 26, 2016",hull_no,2016,realign:date
 811bea62ca,source_file,Sea377.pdf,engine_power_output,Sea377.pdf,realign:source
+811bea62ca,LOA_m,,LOA_m,224.64,manual override
 b9caab92f6,LOA_m,199.90m,registry,199.9,realign:offset-1
 b9caab92f6,B_m,32.26m,dim_length_oa,32.26,realign:offset-1
 b9caab92f6,D_m,18.60m,dim_breadth,18.6,realign:offset-1
@@ -2773,6 +2775,7 @@ e25610d5c7,GT,"about 3,000t",delivery_date,3000,realign:tonnage_order
 e25610d5c7,DWT,"206,600t",registry,206600,realign:tonnage_order
 e25610d5c7,delivery_year,"August 2, 2014",hull_no,2014,realign:date
 e25610d5c7,source_file,Sea380.pdf,dim_length_oa,Sea380.pdf,realign:source
+e25610d5c7,GT,3000.0,GT,,manual override
 4f4c0835d1,LOA_m,364.15m,capacity,364.15,realign:length_order
 4f4c0835d1,B_m,50.6m,speed,50.6,realign:length_order
 4f4c0835d1,D_m,29.5m,classification,29.5,realign:length_order
@@ -3098,6 +3101,11 @@ a749ecc057,source_file,SEA384.pdf,ton_deadweight,SEA384.pdf,realign:source
 ee8b2b6d59,GT,G302T,hull_no,302,realign:tonnage_order
 ee8b2b6d59,DWT,"303,121t",registry,303121,realign:tonnage_order
 ee8b2b6d59,source_file,Sea385.pdf,dim_depth,Sea385.pdf,realign:source
+ee8b2b6d59,LOA_m,,LOA_m,330,manual override
+ee8b2b6d59,B_m,,B_m,60,manual override
+ee8b2b6d59,D_m,,D_m,29.35,manual override
+ee8b2b6d59,T_m,,T_m,21.55,manual override
+ee8b2b6d59,GT,302.0,GT,156391,manual override
 f8c83e426d,GT,"46,793",dim_draft,46793,realign:tonnage_bare_gt
 f8c83e426d,DWT,"54,171t",registry,54171,realign:tonnage_unit
 f8c83e426d,source_file,Sea385.pdf,dim_depth,Sea385.pdf,realign:source
@@ -3165,6 +3173,7 @@ b02a7c1251,source_file,Sea386.pdf,dim_depth,Sea386.pdf,realign:source
 02641faffa,speed_kn,14.60kt,hull_no,14.6,realign:speed
 02641faffa,delivery_year,"July 14, 2017",ton_gross_tonnage,2017,realign:date
 02641faffa,source_file,Sea386.pdf,dim_depth,Sea386.pdf,realign:source
+02641faffa,GT,10811.0,GT,39744,manual override
 52edbf23a2,LOA_m,160.80m,capacity,160.8,realign:offset-4
 52edbf23a2,B_m,26.00m,speed,26,realign:offset-4
 52edbf23a2,D_m,14.00m,classification,14,realign:offset-4
@@ -3399,6 +3408,7 @@ a697974013,DWT,"112,000t",ton_gross_tonnage,112000,realign:tonnage_unit
 a697974013,speed_kn,about 15.2kt,capacity,15.2,realign:speed
 a697974013,delivery_year,"March 7, 2018",hull_no,2018,realign:date
 a697974013,source_file,Sea389.pdf,engine_power_output,Sea389.pdf,realign:source
+a697974013,LOA_m,,LOA_m,228.97,manual override
 38bf5e140f,LOA_m,179.9m,registry,179.9,realign:offset-1
 38bf5e140f,B_m,30.0m,dim_length_oa,30,realign:offset-1
 38bf5e140f,D_m,15.0m,dim_breadth,15,realign:offset-1
@@ -3573,6 +3583,7 @@ fdd7f4e48f,source_file,Sea390.pdf,dim_draft,Sea390.pdf,realign:source
 90b78fd3c3,delivery_year,"April 5, 2018",hull_no,2018,realign:date
 90b78fd3c3,power_kW,"6,050kW at 97.0rpm",ton_deadweight,6050,realign:power
 90b78fd3c3,source_file,Sea391.pdf,engine_engine_model,Sea391.pdf,realign:source
+90b78fd3c3,LOA_m,,LOA_m,199.98,manual override
 4a49a49eb2,LOA_m,143.03m,classification,143.03,realign:offset-2
 4a49a49eb2,B_m,22.60m,registry,22.6,realign:offset-2
 4a49a49eb2,D_m,14.40m,dim_length_oa,14.4,realign:offset-2
@@ -3616,6 +3627,7 @@ dcbb06bcfe,TEU,"557 vehicles, 649TEUs (with 100 reefer plugs)",delivery_date,649
 176ba1f596,DWT,"112,000t",dim_draft,112000,realign:tonnage_unit
 176ba1f596,speed_kn,about 15.2kt,capacity,15.2,realign:speed
 176ba1f596,source_file,Sea391.pdf,engine_engine_model,Sea391.pdf,realign:source
+176ba1f596,LOA_m,,LOA_m,228.97,manual override
 db9642f762,LOA_m,179.97m,classification,179.97,realign:offset-2
 db9642f762,B_m,30.00m,registry,30,realign:offset-2
 db9642f762,D_m,14.05m,dim_length_oa,14.05,realign:offset-2
@@ -3912,9 +3924,13 @@ a42ace5ec1,power_kW,"8,540kW x 2 units",engine_power_output,17080,unit:x2 engine
 7a9989be2e,B_m,32.26m,dim_breadth,32.26,realign:offset+0
 7a9989be2e,D_m,20.15m,dim_depth,20.15,realign:offset+0
 7a9989be2e,DWT,"abt. 82,300t",ton_deadweight,82300,realign:offset+0
+ee14626127,LOA_m,,LOA_m,228.96,manual override
 205758f73b,LOA_m,abt.199.9m,dim_length_oa,199.9,realign:offset+0
 205758f73b,B_m,28.00m,dim_breadth,28,realign:offset+0
 205758f73b,D_m,20.90m,dim_depth,20.9,realign:offset+0
 205758f73b,T_m,6.80m,dim_draft,6.8,realign:offset+0
 205758f73b,DWT,"6,918t",ton_deadweight,6918,realign:offset+0
 205758f73b,power_kW,"8,800kW x 750min-¹ x 2 units",engine_power_output,17600,unit:x2 engines
+6cae3e0147,LOA_m,,LOA_m,239.67,manual override
+93476482eb,LOA_m,,LOA_m,174,manual override
+f2b64a6357,LOA_m,,LOA_m,114,manual override
